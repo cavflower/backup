@@ -46,7 +46,7 @@ function StoreBrowse() {
               <div className="d-grid gap-2">
                 <button 
                   className="btn btn-primary btn-lg mb-2"
-                  onClick={() => navigate('/reservation/new')}
+                  onClick={() => navigate('/reservation/new/12')}
                 >
                   <i className="bi bi-calendar-plus me-2"></i>
                   立即訂位

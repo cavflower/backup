@@ -31,6 +31,11 @@ const getUserTypeFromUrl = (url, method = 'get') => {
     return null; // 返回 null 表示不需要 token
   }
   
+  // 商家端 API 路徑 (/api/merchant/...)，使用 merchant token
+  if (url.includes('/merchant/')) {
+    return 'merchant';
+  }
+  
   // /users/me/ 需要根據當前頁面路徑判斷
   if (url.includes('/users/me/')) {
     const path = window.location.pathname;

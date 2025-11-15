@@ -24,6 +24,7 @@ urlpatterns = [
     path('api/users/', include('apps.users.urls')),
     path('api/products/', include('apps.products.urls')),
     path('api/', include('apps.stores.urls')),
+    path('api/', include('apps.reservations.urls')),
 ]
 
 if settings.DEBUG:

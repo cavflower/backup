@@ -165,6 +165,33 @@
   gap: 12px;
 }
 
+/* 訊息顯示 */
+.loading-message,
+.error-message,
+.no-slots-message {
+  padding: 20px;
+  text-align: center;
+  border-radius: 8px;
+  margin: 10px 0;
+}
+
+.loading-message {
+  background: #f0f8ff;
+  color: #0066cc;
+}
+
+.error-message {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.no-slots-message {
+  background: #f8f9fa;
+  color: #6c757d;
+  border: 1px solid #dee2e6;
+}
+
 .time-slot-btn {
   padding: 16px;
   border: 2px solid var(--secondary-color);

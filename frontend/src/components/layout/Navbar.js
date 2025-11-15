@@ -56,7 +56,7 @@ const Navbar = ({ toggleSidebar }) => {
           ☰
         </button>
         <div className="navbar-logo">
-          <Link to={homePath}>食宇宙 DineVerse</Link>
+          <Link to={homePath}>DineVerse</Link>
         </div>
       </div>
       {renderUserSection()}

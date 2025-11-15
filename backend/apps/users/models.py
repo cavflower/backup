@@ -22,6 +22,13 @@ class User(AbstractBaseUser, PermissionsMixin):
         ('customer', 'Customer'),
         ('merchant', 'Merchant'),
     )
+    
+    GENDER_CHOICES = (
+        ('male', '男'),
+        ('female', '女'),
+        ('other', '其他'),
+        ('prefer_not_to_say', '不提供'),
+    )
 
     firebase_uid = models.CharField(max_length=255, unique=True)
     email = models.EmailField(unique=True)
@@ -29,7 +36,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     user_type = models.CharField(max_length=10, choices=USER_TYPE_CHOICES, default='customer')
     avatar_url = models.TextField(blank=True, default='')
     phone_number = models.CharField(max_length=20, blank=True, default='')
-    address = models.TextField(blank=True, default='')
+    gender = models.CharField(max_length=20, choices=GENDER_CHOICES, blank=True, default='')
+    address = models.TextField(blank=True, default='', help_text='用於外送、帳單等用途')
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)

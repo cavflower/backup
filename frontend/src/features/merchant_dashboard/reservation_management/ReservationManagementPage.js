@@ -3,6 +3,17 @@ import { FaClock, FaUsers, FaCalendarAlt, FaCheckCircle, FaTimesCircle } from 'r
 import TimeSlotSettings from './TimeSlotSettings';
 import ReservationList from './ReservationList';
 import './ReservationManagementPage.css';
+import { 
+  getMerchantReservations, 
+  updateReservationStatus, 
+  merchantCancelReservation,
+  deleteReservation,
+  getReservationStats,
+  getTimeSlots,
+  createTimeSlot,
+  updateTimeSlot,
+  deleteTimeSlot
+} from '../../../api/reservationApi';
 
 const ReservationManagementPage = () => {
   const [activeTab, setActiveTab] = useState('reservations'); // 'reservations' or 'settings'
@@ -14,6 +25,9 @@ const ReservationManagementPage = () => {
     cancelled: 0,
     completed: 0,
   });
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [selectedReservationId, setSelectedReservationId] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
 
   useEffect(() => {
     fetchReservations();
@@ -22,91 +36,25 @@ const ReservationManagementPage = () => {
 
   const fetchReservations = async () => {
     try {
-      // TODO: 替換為實際的 API 調用
-      // const response = await getReservations();
-      // setReservations(response.data);
-      
-      // 模擬數據
-      const mockReservations = [
-        {
-          id: 1,
-          customer_name: '王小明',
-          customer_phone: '0912-345-678',
-          date: '2025-11-20',
-          time_slot: '18:00-20:00',
-          party_size: 4,
-          status: 'pending',
-          special_requests: '靠窗座位',
-          created_at: '2025-11-14T10:30:00',
-        },
-        {
-          id: 2,
-          customer_name: '李美華',
-          customer_phone: '0923-456-789',
-          date: '2025-11-20',
-          time_slot: '12:00-14:00',
-          party_size: 2,
-          status: 'confirmed',
-          special_requests: '',
-          created_at: '2025-11-13T15:20:00',
-        },
-        {
-          id: 3,
-          customer_name: '張大偉',
-          customer_phone: '0934-567-890',
-          date: '2025-11-21',
-          time_slot: '19:00-21:00',
-          party_size: 6,
-          status: 'pending',
-          special_requests: '兒童座椅 x2',
-          created_at: '2025-11-14T09:15:00',
-        },
-      ];
-      
-      setReservations(mockReservations);
-      updateStats(mockReservations);
+      const response = await getMerchantReservations();
+      const reservationData = response.data.results || response.data;
+      setReservations(reservationData);
+      updateStats(reservationData);
     } catch (error) {
       console.error('Failed to fetch reservations:', error);
+      alert('無法載入訂位資料，請稍後再試。');
     }
   };
 
   const fetchTimeSlots = async () => {
     try {
-      // TODO: 替換為實際的 API 調用
-      // const response = await getTimeSlots();
-      // setTimeSlots(response.data);
-      
-      // 模擬數據
-      const mockTimeSlots = [
-        {
-          id: 1,
-          day_of_week: 'monday',
-          start_time: '11:30',
-          end_time: '14:00',
-          max_capacity: 20,
-          is_active: true,
-        },
-        {
-          id: 2,
-          day_of_week: 'monday',
-          start_time: '17:30',
-          end_time: '21:00',
-          max_capacity: 30,
-          is_active: true,
-        },
-        {
-          id: 3,
-          day_of_week: 'tuesday',
-          start_time: '11:30',
-          end_time: '14:00',
-          max_capacity: 20,
-          is_active: true,
-        },
-      ];
-      
-      setTimeSlots(mockTimeSlots);
+      const response = await getTimeSlots();
+      const slots = response.data.results || response.data;
+      setTimeSlots(slots);
     } catch (error) {
       console.error('Failed to fetch time slots:', error);
+      // 如果沒有設定，使用空陣列
+      setTimeSlots([]);
     }
   };
 
@@ -122,39 +70,37 @@ const ReservationManagementPage = () => {
 
   const handleAcceptReservation = async (reservationId) => {
     try {
-      // TODO: 替換為實際的 API 調用
-      // await acceptReservation(reservationId);
+      await updateReservationStatus(reservationId, 'confirmed');
       
-      // 模擬更新
-      const updatedReservations = reservations.map(r =>
-        r.id === reservationId ? { ...r, status: 'confirmed' } : r
-      );
-      setReservations(updatedReservations);
-      updateStats(updatedReservations);
+      // 重新載入訂位列表
+      await fetchReservations();
       alert('訂位已確認！');
     } catch (error) {
       console.error('Failed to accept reservation:', error);
-      alert('確認訂位失敗，請稍後再試。');
+      const errorMsg = error.response?.data?.error || '確認訂位失敗，請稍後再試。';
+      alert(errorMsg);
     }
   };
 
-  const handleCancelReservation = async (reservationId) => {
-    if (!window.confirm('確定要取消此訂位嗎？')) return;
-    
+  const handleCancelClick = (reservationId) => {
+    setSelectedReservationId(reservationId);
+    setShowCancelDialog(true);
+  };
+
+  const handleCancelReservation = async () => {
     try {
-      // TODO: 替換為實際的 API 調用
-      // await cancelReservation(reservationId);
+      await merchantCancelReservation(selectedReservationId, cancelReason);
       
-      // 模擬更新
-      const updatedReservations = reservations.map(r =>
-        r.id === reservationId ? { ...r, status: 'cancelled' } : r
-      );
-      setReservations(updatedReservations);
-      updateStats(updatedReservations);
+      // 重新載入訂位列表
+      await fetchReservations();
+      setShowCancelDialog(false);
+      setCancelReason('');
+      setSelectedReservationId(null);
       alert('訂位已取消！');
     } catch (error) {
       console.error('Failed to cancel reservation:', error);
-      alert('取消訂位失敗，請稍後再試。');
+      const errorMsg = error.response?.data?.error || '取消訂位失敗，請稍後再試。';
+      alert(errorMsg);
     }
   };
 
@@ -162,43 +108,51 @@ const ReservationManagementPage = () => {
     if (!window.confirm('確定要將此訂位標記為已完成嗎？')) return;
     
     try {
-      // TODO: 替換為實際的 API 調用
-      // await completeReservation(reservationId);
+      await updateReservationStatus(reservationId, 'completed');
       
-      // 模擬更新
-      const updatedReservations = reservations.map(r =>
-        r.id === reservationId ? { ...r, status: 'completed' } : r
-      );
-      setReservations(updatedReservations);
-      updateStats(updatedReservations);
+      // 重新載入訂位列表
+      await fetchReservations();
       alert('訂位已完成！');
     } catch (error) {
       console.error('Failed to complete reservation:', error);
-      alert('標記完成失敗，請稍後再試。');
+      const errorMsg = error.response?.data?.error || '標記完成失敗，請稍後再試。';
+      alert(errorMsg);
+    }
+  };
+
+  const handleDeleteReservation = async (reservationId) => {
+    if (!window.confirm('確定要刪除此訂位記錄嗎？此操作無法復原。')) return;
+    
+    try {
+      await deleteReservation(reservationId);
+      
+      // 重新載入訂位列表
+      await fetchReservations();
+      alert('訂位記錄已刪除！');
+    } catch (error) {
+      console.error('Failed to delete reservation:', error);
+      const errorMsg = error.response?.data?.error || '刪除訂位失敗，請稍後再試。';
+      alert(errorMsg);
     }
   };
 
   const handleSaveTimeSlot = async (timeSlotData) => {
     try {
-      // TODO: 替換為實際的 API 調用
       if (timeSlotData.id) {
         // 編輯現有時段
-        // await updateTimeSlot(timeSlotData.id, timeSlotData);
-        const updatedSlots = timeSlots.map(slot =>
-          slot.id === timeSlotData.id ? timeSlotData : slot
-        );
-        setTimeSlots(updatedSlots);
+        await updateTimeSlot(timeSlotData.id, timeSlotData);
         alert('時段已更新！');
       } else {
         // 新增時段
-        // const response = await createTimeSlot(timeSlotData);
-        const newSlot = { ...timeSlotData, id: Date.now() };
-        setTimeSlots([...timeSlots, newSlot]);
+        await createTimeSlot(timeSlotData);
         alert('時段已新增！');
       }
+      // 重新載入時段設定
+      await fetchTimeSlots();
     } catch (error) {
       console.error('Failed to save time slot:', error);
-      alert('儲存時段失敗，請稍後再試。');
+      const errorMsg = error.response?.data?.error || error.response?.data?.detail || '儲存時段失敗，請稍後再試。';
+      alert(errorMsg);
     }
   };
 
@@ -206,13 +160,13 @@ const ReservationManagementPage = () => {
     if (!window.confirm('確定要刪除此時段嗎？')) return;
     
     try {
-      // TODO: 替換為實際的 API 調用
-      // await deleteTimeSlot(slotId);
-      setTimeSlots(timeSlots.filter(slot => slot.id !== slotId));
+      await deleteTimeSlot(slotId);
+      await fetchTimeSlots();
       alert('時段已刪除！');
     } catch (error) {
       console.error('Failed to delete time slot:', error);
-      alert('刪除時段失敗，請稍後再試。');
+      const errorMsg = error.response?.data?.error || error.response?.data?.detail || '刪除時段失敗，請稍後再試。';
+      alert(errorMsg);
     }
   };
 
@@ -272,8 +226,9 @@ const ReservationManagementPage = () => {
           <ReservationList
             reservations={reservations}
             onAccept={handleAcceptReservation}
-            onCancel={handleCancelReservation}
+            onCancel={handleCancelClick}
             onComplete={handleCompleteReservation}
+            onDelete={handleDeleteReservation}
           />
         ) : (
           <TimeSlotSettings
@@ -283,6 +238,43 @@ const ReservationManagementPage = () => {
           />
         )}
       </div>
+
+      {/* 取消訂位對話框 */}
+      {showCancelDialog && (
+        <div className="dialog-overlay" onClick={() => setShowCancelDialog(false)}>
+          <div className="dialog-content" onClick={(e) => e.stopPropagation()}>
+            <h3>取消訂位</h3>
+            <p>您確定要取消此訂位嗎？</p>
+            <div className="form-group">
+              <label>取消原因（選填）</label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="請說明取消原因..."
+                rows="4"
+              />
+            </div>
+            <div className="dialog-actions">
+              <button
+                className="btn-secondary"
+                onClick={() => {
+                  setShowCancelDialog(false);
+                  setCancelReason('');
+                  setSelectedReservationId(null);
+                }}
+              >
+                返回
+              </button>
+              <button
+                className="btn-danger"
+                onClick={handleCancelReservation}
+              >
+                確認取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

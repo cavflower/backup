@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../store/AuthContext';
 import { 
@@ -10,12 +10,15 @@ import {
   FaArrowLeft,
   FaArrowRight
 } from 'react-icons/fa';
+import { createReservation, getPublicTimeSlots } from '../../api/reservationApi';
 import './ReservationPage.css';
 
 const ReservationPage = () => {
   const { storeId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  
+  console.log('🚀 ReservationPage mounted, storeId:', storeId);
   
   // 訂位步驟狀態
   const [currentStep, setCurrentStep] = useState(1);
@@ -38,10 +41,71 @@ const ReservationPage = () => {
   // 步驟定義：1.選擇訂位資訊 2.填寫資料(僅訪客) 3.預先點餐 4.確認訂位
   const totalSteps = user ? 3 : 4; // 會員3步驟，訪客4步驟
 
-  // 可用時段（模擬數據）
+  // 可用時段
   const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
   const [availableDates, setAvailableDates] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   
+  // 使用 useCallback 避免不必要的重新渲染
+  const fetchAvailableTimeSlots = useCallback(async (date) => {
+    // 驗證 storeId 是否存在
+    if (!storeId) {
+      setError('店家資訊錯誤，請重新選擇店家');
+      setAvailableTimeSlots([]);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const selectedDate = new Date(date);
+      const dayOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][selectedDate.getDay()];
+      
+      console.log('🔍 Debug - Fetching time slots:', {
+        date,
+        selectedDate,
+        dayOfWeek,
+        storeId
+      });
+      
+      const response = await getPublicTimeSlots(storeId);
+      const allSlots = response.data.results || response.data;
+      
+      console.log('📥 API Response:', {
+        totalSlots: allSlots.length,
+        slots: allSlots
+      });
+      
+      // 篩選該星期的時段，並且只顯示啟用的時段
+      const daySlots = allSlots
+        .filter(slot => slot.day_of_week === dayOfWeek && slot.is_active)
+        .map(slot => ({
+          id: slot.id,
+          time: `${slot.start_time.substring(0, 5)}-${slot.end_time.substring(0, 5)}`,
+          available: true, // 簡化處理，實際應檢查容量
+          capacity: slot.max_capacity,
+          start_time: slot.start_time,
+          end_time: slot.end_time,
+        }));
+      
+      console.log('✅ Filtered slots for', dayOfWeek, ':', daySlots);
+      
+      setAvailableTimeSlots(daySlots);
+      setLoading(false);
+      
+      // 如果該日沒有時段，顯示提示訊息
+      if (daySlots.length === 0) {
+        setError('該日期尚無可訂位時段，請選擇其他日期');
+      }
+    } catch (err) {
+      console.error('Failed to fetch time slots:', err);
+      setError('無法載入時段資料，請稍後再試');
+      setAvailableTimeSlots([]);
+      setLoading(false);
+    }
+  }, [storeId]);
+
   useEffect(() => {
     // 生成未來7天的日期
     const dates = [];
@@ -51,27 +115,21 @@ const ReservationPage = () => {
       dates.push(date.toISOString().split('T')[0]);
     }
     setAvailableDates(dates);
+    console.log('📅 Available dates generated:', dates);
   }, []);
 
   useEffect(() => {
-    if (reservationData.date) {
+    console.log('🔄 useEffect triggered - reservationData.date:', reservationData.date, 'storeId:', storeId);
+    if (reservationData.date && storeId) {
+      console.log('📅 Date changed, fetching time slots for:', reservationData.date);
       fetchAvailableTimeSlots(reservationData.date);
+    } else {
+      console.log('⚠️ Not fetching - date or storeId missing');
     }
-  }, [reservationData.date]);
-
-  const fetchAvailableTimeSlots = (date) => {
-    // TODO: 替換為實際 API 調用
-    // 模擬時段數據
-    const slots = [
-      { id: 1, time: '11:30-13:30', available: true, capacity: 10 },
-      { id: 2, time: '13:30-15:30', available: true, capacity: 8 },
-      { id: 3, time: '17:30-19:30', available: true, capacity: 15 },
-      { id: 4, time: '19:30-21:30', available: false, capacity: 0 },
-    ];
-    setAvailableTimeSlots(slots);
-  };
+  }, [reservationData.date, storeId, fetchAvailableTimeSlots]);
 
   const handleDateSelect = (date) => {
+    console.log('📆 handleDateSelect called with:', date);
     setReservationData({ ...reservationData, date });
   };
 
@@ -124,23 +182,45 @@ const ReservationPage = () => {
 
   const handleSubmitReservation = async () => {
     try {
-      // TODO: 替換為實際 API 調用
+      setLoading(true);
+      
+      // 準備訂位資料
       const reservationPayload = {
-        ...reservationData,
-        customer: user ? user.id : null,
-        store_id: storeId,
+        store: parseInt(storeId),
+        reservation_date: reservationData.date,
+        time_slot: reservationData.timeSlot,
+        party_size: reservationData.partySize,
+        children_count: reservationData.childrenCount,
+        special_requests: reservationData.specialRequests || '',
       };
       
-      console.log('提交訂位:', reservationPayload);
+      // 如果是訪客，加入訪客資訊
+      if (!user) {
+        reservationPayload.customer_name = reservationData.guestInfo.name;
+        reservationPayload.customer_phone = reservationData.guestInfo.phone;
+        reservationPayload.customer_email = reservationData.guestInfo.email || '';
+        reservationPayload.customer_gender = reservationData.guestInfo.gender;
+      }
       
-      // 模擬 API 調用
-      setTimeout(() => {
-        alert('訂位成功！');
-        navigate('/reservation/success');
-      }, 1000);
+      const response = await createReservation(reservationPayload);
+      
+      setLoading(false);
+      
+      // 導向成功頁面，並傳遞訂位編號
+      navigate('/reservation/success', { 
+        state: { 
+          reservationNumber: response.data.reservation_number,
+          isGuest: !user,
+          phone: user ? user.phone_number : reservationData.guestInfo.phone
+        } 
+      });
     } catch (error) {
       console.error('訂位失敗:', error);
-      alert('訂位失敗，請稍後再試。');
+      setLoading(false);
+      const errorMsg = error.response?.data?.error || 
+                       error.response?.data?.detail ||
+                       '訂位失敗，請稍後再試。';
+      alert(errorMsg);
     }
   };
 
@@ -256,25 +336,33 @@ const ReservationPage = () => {
               {reservationData.date && (
                 <div className="section-block">
                   <h3 className="section-title">訂位時段</h3>
-                  <div className="time-slot-compact">
-                    {availableTimeSlots.map((slot) => (
-                      <button
-                        key={slot.id}
-                        className={`time-slot-btn ${
-                          reservationData.timeSlot === slot.time ? 'selected' : ''
-                        } ${!slot.available ? 'disabled' : ''}`}
-                        onClick={() => slot.available && handleTimeSlotSelect(slot)}
-                        disabled={!slot.available}
-                      >
-                        <div className="slot-time">{slot.time}</div>
-                        {slot.available ? (
-                          <div className="slot-status available">可訂</div>
-                        ) : (
-                          <div className="slot-status full">已滿</div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
+                  {loading ? (
+                    <div className="loading-message">載入時段中...</div>
+                  ) : error ? (
+                    <div className="error-message">{error}</div>
+                  ) : availableTimeSlots.length === 0 ? (
+                    <div className="no-slots-message">該日期尚無可訂位時段，請選擇其他日期</div>
+                  ) : (
+                    <div className="time-slot-compact">
+                      {availableTimeSlots.map((slot) => (
+                        <button
+                          key={slot.id}
+                          className={`time-slot-btn ${
+                            reservationData.timeSlot === slot.time ? 'selected' : ''
+                          } ${!slot.available ? 'disabled' : ''}`}
+                          onClick={() => slot.available && handleTimeSlotSelect(slot)}
+                          disabled={!slot.available}
+                        >
+                          <div className="slot-time">{slot.time}</div>
+                          {slot.available ? (
+                            <div className="slot-status available">可訂</div>
+                          ) : (
+                            <div className="slot-status full">已滿</div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

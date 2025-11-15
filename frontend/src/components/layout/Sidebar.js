@@ -1,7 +1,18 @@
 import React from 'react';
+import { useAuth } from '../../store/AuthContext';
 import './Sidebar.css';
 
 const Sidebar = ({ isOpen }) => {
+  const { user } = useAuth();
+
+  // 訪客點擊「我的訂位」導向查詢頁面，會員導向訂位清單
+  const handleReservationClick = (e) => {
+    if (!user) {
+      e.preventDefault();
+      window.location.href = '/guest-lookup';
+    }
+  };
+
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       <div className="sidebar-header">
@@ -9,7 +20,14 @@ const Sidebar = ({ isOpen }) => {
       </div>
       <ul className="sidebar-links">
         <li><a href="/search">🔍 搜尋店家</a></li>
-        <li><a href="/reservations">📅 線上訂位</a></li>
+        <li>
+          <a 
+            href="/my-reservations" 
+            onClick={handleReservationClick}
+          >
+            📅 我的訂位
+          </a>
+        </li>
         <li><a href="/orders">🛒 線上點餐</a></li>
         <li><a href="/leaderboard">🏆 熱銷排行</a></li>
         <hr />
