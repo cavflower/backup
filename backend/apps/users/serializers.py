@@ -12,7 +12,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'firebase_uid', 'email', 'username', 'user_type', 'avatar_url', 'phone_number', 'address', 'created_at', 'merchant_profile']
+        fields = ['id', 'firebase_uid', 'email', 'username', 'user_type', 'avatar_url', 'phone_number', 'gender', 'address', 'created_at', 'merchant_profile']
         read_only_fields = ['id', 'created_at']
 
     def create(self, validated_data):
@@ -42,6 +42,7 @@ class UserSerializer(serializers.ModelSerializer):
         # Update User fields
         instance.username = validated_data.get('username', instance.username)
         instance.phone_number = validated_data.get('phone_number', instance.phone_number)
+        instance.gender = validated_data.get('gender', instance.gender)
         instance.address = validated_data.get('address', instance.address)
         instance.avatar_url = validated_data.get('avatar_url', instance.avatar_url)
         instance.save()

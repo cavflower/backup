@@ -69,7 +69,9 @@ const ReservationPage = () => {
         storeId
       });
       
-      const response = await getPublicTimeSlots(storeId);
+      // 傳遞日期參數以獲取容量資訊
+      const dateStr = selectedDate.toISOString().split('T')[0];
+      const response = await getPublicTimeSlots(storeId, dateStr);
       const allSlots = response.data.results || response.data;
       
       console.log('📥 API Response:', {
@@ -80,14 +82,23 @@ const ReservationPage = () => {
       // 篩選該星期的時段，並且只顯示啟用的時段
       const daySlots = allSlots
         .filter(slot => slot.day_of_week === dayOfWeek && slot.is_active)
-        .map(slot => ({
-          id: slot.id,
-          time: `${slot.start_time.substring(0, 5)}-${slot.end_time.substring(0, 5)}`,
-          available: true, // 簡化處理，實際應檢查容量
-          capacity: slot.max_capacity,
-          start_time: slot.start_time,
-          end_time: slot.end_time,
-        }));
+        .map(slot => {
+          // 處理時間顯示（如果沒有結束時間，只顯示開始時間）
+          const timeDisplay = slot.end_time 
+            ? `${slot.start_time.substring(0, 5)}-${slot.end_time.substring(0, 5)}`
+            : slot.start_time.substring(0, 5);
+          
+          return {
+            id: slot.id,
+            time: timeDisplay,
+            available: slot.available !== undefined ? slot.available : true,
+            capacity: slot.max_capacity,
+            max_party_size: slot.max_party_size,
+            current_bookings: slot.current_bookings || 0,
+            start_time: slot.start_time,
+            end_time: slot.end_time,
+          };
+        });
       
       console.log('✅ Filtered slots for', dayOfWeek, ':', daySlots);
       
@@ -142,7 +153,12 @@ const ReservationPage = () => {
   };
 
   const handleTimeSlotSelect = (slot) => {
-    setReservationData({ ...reservationData, timeSlot: slot.time });
+    setReservationData({ 
+      ...reservationData, 
+      timeSlot: slot.time,
+      selectedSlotId: slot.id,
+      maxPartySize: slot.max_party_size
+    });
   };
 
   const handleGuestInfoChange = (e) => {
@@ -170,6 +186,16 @@ const ReservationPage = () => {
       if (!reservationData.timeSlot) {
         alert('請選擇訂位時段');
         return;
+      }
+      
+      // 驗證總人數是否超過單筆限制
+      const selectedSlot = availableTimeSlots.find(slot => slot.time === reservationData.timeSlot);
+      if (selectedSlot) {
+        const totalPeople = reservationData.partySize + (reservationData.childrenCount || 0);
+        if (totalPeople > selectedSlot.max_party_size) {
+          alert(`總人數（大人+小孩）不能超過 ${selectedSlot.max_party_size} 人`);
+          return;
+        }
       }
     }
     
@@ -200,6 +226,11 @@ const ReservationPage = () => {
         reservationPayload.customer_phone = reservationData.guestInfo.phone;
         reservationPayload.customer_email = reservationData.guestInfo.email || '';
         reservationPayload.customer_gender = reservationData.guestInfo.gender;
+      } else {
+        // 會員也要加入性別資訊
+        if (user.gender) {
+          reservationPayload.customer_gender = user.gender;
+        }
       }
       
       const response = await createReservation(reservationPayload);
@@ -354,8 +385,11 @@ const ReservationPage = () => {
                           disabled={!slot.available}
                         >
                           <div className="slot-time">{slot.time}</div>
+                          <div className="slot-capacity">單筆限 {slot.max_party_size} 人</div>
                           {slot.available ? (
-                            <div className="slot-status available">可訂</div>
+                            <div className="slot-status available">
+                              可訂 ({slot.capacity - slot.current_bookings} 位)
+                            </div>
                           ) : (
                             <div className="slot-status full">已滿</div>
                           )}
@@ -528,6 +562,12 @@ const ReservationPage = () => {
                     <span className="label">聯絡人：</span>
                     <span className="value">
                       {user ? user.username : reservationData.guestInfo.name}
+                      {user && user.gender && (
+                        <span className="gender-suffix">
+                          {user.gender === 'female' ? ' 小姐' : 
+                           user.gender === 'male' ? ' 先生' : ''}
+                        </span>
+                      )}
                       {!user && reservationData.guestInfo.gender && (
                         <span className="gender-suffix">
                           {reservationData.guestInfo.gender === 'female' ? ' 小姐' : 

@@ -238,100 +238,6 @@ class ReservationChangeLog(models.Model):
         return f"{self.reservation.reservation_number} - {self.change_type} at {self.created_at}"
 
 
-class StoreReservationSettings(models.Model):
-    """
-    店家訂位設定
-    """
-    store = models.OneToOneField(
-        Store,
-        on_delete=models.CASCADE,
-        related_name='reservation_settings',
-        verbose_name='店家'
-    )
-    
-    # 訂位功能開關
-    is_reservation_enabled = models.BooleanField(
-        default=True,
-        verbose_name='啟用訂位功能'
-    )
-    
-    # 訂位規則
-    min_party_size = models.PositiveIntegerField(
-        default=1,
-        verbose_name='最少訂位人數'
-    )
-    max_party_size = models.PositiveIntegerField(
-        default=20,
-        verbose_name='最多訂位人數'
-    )
-    advance_booking_days = models.PositiveIntegerField(
-        default=30,
-        verbose_name='可提前預訂天數'
-    )
-    min_advance_hours = models.PositiveIntegerField(
-        default=2,
-        verbose_name='最少提前預訂小時數'
-    )
-    
-    # 時段設定
-    available_time_slots = models.JSONField(
-        default=dict,
-        verbose_name='可訂位時段',
-        help_text='格式: {"monday": ["11:00-13:00", "17:00-21:00"], ...}'
-    )
-    slot_duration_minutes = models.PositiveIntegerField(
-        default=120,
-        verbose_name='每個時段時長（分鐘）'
-    )
-    
-    # 自動確認設定
-    auto_confirm = models.BooleanField(
-        default=False,
-        verbose_name='自動確認訂位',
-        help_text='若關閉，訂位需商家手動確認'
-    )
-    
-    # 提醒設定
-    send_confirmation_email = models.BooleanField(
-        default=True,
-        verbose_name='發送確認Email'
-    )
-    send_reminder_sms = models.BooleanField(
-        default=False,
-        verbose_name='發送提醒簡訊'
-    )
-    reminder_hours_before = models.PositiveIntegerField(
-        default=24,
-        verbose_name='提前多少小時提醒'
-    )
-    
-    # 取消政策
-    allow_customer_cancel = models.BooleanField(
-        default=True,
-        verbose_name='允許顧客取消'
-    )
-    cancel_hours_before = models.PositiveIntegerField(
-        default=2,
-        verbose_name='取消須提前多少小時'
-    )
-    
-    # 特殊日期（不接受訂位）
-    blocked_dates = models.JSONField(
-        default=list,
-        verbose_name='封鎖日期',
-        help_text='格式: ["2025-12-25", "2025-01-01"]'
-    )
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        verbose_name = '店家訂位設定'
-        verbose_name_plural = '店家訂位設定列表'
-    
-    def __str__(self):
-        return f"{self.store.name} 訂位設定"
-
 
 class TimeSlot(models.Model):
     """
@@ -359,7 +265,11 @@ class TimeSlot(models.Model):
         verbose_name='星期'
     )
     start_time = models.TimeField(verbose_name='開始時間')
-    end_time = models.TimeField(verbose_name='結束時間')
+    end_time = models.TimeField(
+        null=True,
+        blank=True,
+        verbose_name='結束時間'
+    )
     max_capacity = models.PositiveIntegerField(
         verbose_name='人數上限',
         help_text='此時段可容納的最大人數'
@@ -380,7 +290,10 @@ class TimeSlot(models.Model):
         verbose_name = '訂位時段'
         verbose_name_plural = '訂位時段列表'
         ordering = ['day_of_week', 'start_time']
-        unique_together = ['store', 'day_of_week', 'start_time', 'end_time']
+        unique_together = ['store', 'day_of_week', 'start_time']
     
     def __str__(self):
-        return f"{self.store.name} - {self.get_day_of_week_display()} {self.start_time.strftime('%H:%M')}-{self.end_time.strftime('%H:%M')}"
+        time_display = f"{self.start_time.strftime('%H:%M')}"
+        if self.end_time:
+            time_display += f"-{self.end_time.strftime('%H:%M')}"
+        return f"{self.store.name} - {self.get_day_of_week_display()} {time_display}"

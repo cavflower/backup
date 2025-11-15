@@ -138,13 +138,19 @@ const ReservationManagementPage = () => {
 
   const handleSaveTimeSlot = async (timeSlotData) => {
     try {
+      // 處理空字串，轉為 null
+      const processedData = {
+        ...timeSlotData,
+        end_time: timeSlotData.end_time || null
+      };
+      
       if (timeSlotData.id) {
         // 編輯現有時段
-        await updateTimeSlot(timeSlotData.id, timeSlotData);
+        await updateTimeSlot(timeSlotData.id, processedData);
         alert('時段已更新！');
       } else {
         // 新增時段
-        await createTimeSlot(timeSlotData);
+        await createTimeSlot(processedData);
         alert('時段已新增！');
       }
       // 重新載入時段設定

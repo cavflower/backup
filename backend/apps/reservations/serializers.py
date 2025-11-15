@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Reservation, ReservationChangeLog, StoreReservationSettings, TimeSlot
+from .models import Reservation, ReservationChangeLog, TimeSlot
 from apps.stores.models import Store
 from apps.users.models import User
 
@@ -56,6 +56,12 @@ class ReservationSerializer(serializers.ModelSerializer):
 class ReservationCreateSerializer(serializers.ModelSerializer):
     """建立訂位序列化器"""
     
+    # 讓這些欄位在 API 請求中為選填（會員可省略）
+    customer_name = serializers.CharField(required=False, allow_blank=True)
+    customer_phone = serializers.CharField(required=False, allow_blank=True)
+    customer_email = serializers.EmailField(required=False, allow_blank=True)
+    customer_gender = serializers.CharField(required=False, allow_blank=True)
+    
     class Meta:
         model = Reservation
         fields = [
@@ -88,12 +94,27 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
                 'party_size': '訂位人數至少為 1 人'
             })
         
-        # 驗證時段格式
+        # 驗證時段格式（可以是 "HH:MM" 或 "HH:MM-HH:MM"）
         time_slot = data.get('time_slot', '')
-        if not time_slot or '-' not in time_slot:
+        if not time_slot:
             raise serializers.ValidationError({
-                'time_slot': '時段格式錯誤，應為 HH:MM-HH:MM'
+                'time_slot': '請選擇訂位時段'
             })
+        
+        # 驗證時間格式
+        import re
+        if '-' in time_slot:
+            # 格式：HH:MM-HH:MM
+            if not re.match(r'^\d{2}:\d{2}-\d{2}:\d{2}$', time_slot):
+                raise serializers.ValidationError({
+                    'time_slot': '時段格式錯誤，應為 HH:MM-HH:MM'
+                })
+        else:
+            # 格式：HH:MM
+            if not re.match(r'^\d{2}:\d{2}$', time_slot):
+                raise serializers.ValidationError({
+                    'time_slot': '時段格式錯誤，應為 HH:MM'
+                })
         
         return data
     
@@ -101,14 +122,35 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
         """建立訂位"""
         request = self.context.get('request')
         
-        # 如果是已登入會員，自動關聯 user
+        # 如果是已登入會員，自動關聯 user 並填補缺失的顧客資訊
         if request and request.user.is_authenticated:
             validated_data['user'] = request.user
-            # 如果會員沒有填寫姓名/手機，使用會員資料
+            
+            # 如果會員沒有填寫姓名，使用會員的 username
             if not validated_data.get('customer_name'):
                 validated_data['customer_name'] = request.user.username
+            
+            # 如果會員沒有填寫手機，使用會員的 phone_number（如果有的話）
             if not validated_data.get('customer_phone'):
-                validated_data['customer_phone'] = request.user.phone_number
+                if request.user.phone_number:
+                    validated_data['customer_phone'] = request.user.phone_number
+                else:
+                    # 如果會員也沒有手機號碼，使用預設值
+                    validated_data['customer_phone'] = '未提供'
+            
+            # 如果會員沒有填寫 email，使用會員的 email
+            if not validated_data.get('customer_email'):
+                validated_data['customer_email'] = request.user.email
+            
+            # 如果會員沒有填寫性別，使用會員的 gender（如果有的話）
+            if not validated_data.get('customer_gender') and request.user.gender:
+                validated_data['customer_gender'] = request.user.gender
+        else:
+            # 訪客訂位必須提供完整資訊
+            if not validated_data.get('customer_name'):
+                raise serializers.ValidationError({'customer_name': '訪客訂位必須提供姓名'})
+            if not validated_data.get('customer_phone'):
+                raise serializers.ValidationError({'customer_phone': '訪客訂位必須提供手機號碼'})
         
         reservation = Reservation.objects.create(**validated_data)
         
@@ -242,17 +284,9 @@ class ReservationChangeLogSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
 
-class StoreReservationSettingsSerializer(serializers.ModelSerializer):
-    """店家訂位設定序列化器"""
-    
-    class Meta:
-        model = StoreReservationSettings
-        fields = '__all__'
-        read_only_fields = ['store', 'created_at', 'updated_at']
-
-
 class TimeSlotSerializer(serializers.ModelSerializer):
     """訂位時段序列化器"""
+    has_reservations = serializers.SerializerMethodField()
     
     class Meta:
         model = TimeSlot
@@ -265,18 +299,129 @@ class TimeSlotSerializer(serializers.ModelSerializer):
             'max_capacity',
             'max_party_size',
             'is_active',
+            'has_reservations',
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['id', 'store', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'store', 'has_reservations', 'created_at', 'updated_at']
+    
+    def get_has_reservations(self, obj):
+        """檢查該時段（相同星期幾）是否有未來的訂位"""
+        from django.utils import timezone
+        
+        # 構造時間字串
+        if obj.end_time:
+            time_str = f"{obj.start_time.strftime('%H:%M')}-{obj.end_time.strftime('%H:%M')}"
+        else:
+            time_str = obj.start_time.strftime('%H:%M')
+        
+        # 星期幾對應表
+        day_of_week_map = {
+            'monday': 0, 'tuesday': 1, 'wednesday': 2, 'thursday': 3,
+            'friday': 4, 'saturday': 5, 'sunday': 6
+        }
+        target_weekday = day_of_week_map[obj.day_of_week]
+        
+        # 獲取未來的訂位
+        today = timezone.now().date()
+        future_reservations = Reservation.objects.filter(
+            time_slot=time_str,
+            store=obj.store,
+            reservation_date__gte=today,
+            status__in=['pending', 'confirmed']
+        )
+        
+        # 只檢查符合該星期幾的訂位
+        for reservation in future_reservations:
+            if reservation.reservation_date.weekday() == target_weekday:
+                return True
+        
+        return False
     
     def validate(self, data):
-        """驗證時段時間"""
-        if data.get('start_time') and data.get('end_time'):
-            if data['start_time'] >= data['end_time']:
+        """驗證時段時間和容量設定"""
+        # 驗證時間順序（只在設定結束時間時檢查）
+        start_time = data.get('start_time')
+        end_time = data.get('end_time')
+        
+        # 如果更新時沒有提供 start_time，從 instance 取得
+        if self.instance and not start_time:
+            start_time = self.instance.start_time
+        
+        # 只有當結束時間存在時才驗證
+        if end_time and start_time:
+            if start_time >= end_time:
                 raise serializers.ValidationError({
-                    'end_time': '結束時間必須晚於開始時間'
+                    'end_time': '結束時間不得小於開始時間'
                 })
+        
+        # 驗證單筆人數不超過總容量
+        max_capacity = data.get('max_capacity') or (self.instance.max_capacity if self.instance else None)
+        max_party_size = data.get('max_party_size') or (self.instance.max_party_size if self.instance else None)
+        
+        if max_capacity and max_party_size:
+            if max_party_size > max_capacity:
+                raise serializers.ValidationError({
+                    'max_party_size': '單筆訂位最多人數不得超過人數上限'
+                })
+        
+        return data
+
+
+class TimeSlotWithAvailabilitySerializer(serializers.ModelSerializer):
+    """帶有容量資訊的訂位時段序列化器"""
+    current_bookings = serializers.SerializerMethodField()
+    available = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = TimeSlot
+        fields = [
+            'id',
+            'store',
+            'day_of_week',
+            'start_time',
+            'end_time',
+            'max_capacity',
+            'max_party_size',
+            'current_bookings',
+            'available',
+            'is_active',
+        ]
+    
+    def get_current_bookings(self, obj):
+        """獲取當前時段的訂位人數（根據日期）"""
+        date = self.context.get('date')
+        if not date:
+            return 0
+        
+        from django.db.models import Sum
+        # obj 是 TimeSlot 實例，需要構造時間字串來匹配 Reservation 的 time_slot CharField
+        if obj.end_time:
+            time_str = f"{obj.start_time.strftime('%H:%M')}-{obj.end_time.strftime('%H:%M')}"
+        else:
+            time_str = obj.start_time.strftime('%H:%M')
+        
+        reservations = Reservation.objects.filter(
+            time_slot=time_str,
+            store=obj.store,
+            reservation_date=date,
+            status__in=['pending', 'confirmed']
+        )
+        
+        result = reservations.aggregate(
+            total_adults=Sum('party_size'),
+            total_children=Sum('children_count')
+        )
+        
+        total_adults = result['total_adults'] or 0
+        total_children = result['total_children'] or 0
+        
+        return total_adults + total_children
+    
+    def get_available(self, obj):
+        """檢查時段是否還有空位"""
+        current = self.get_current_bookings(obj)
+        return current < obj.max_capacity
         
         if data.get('max_capacity') and data.get('max_capacity') < 1:
             raise serializers.ValidationError({

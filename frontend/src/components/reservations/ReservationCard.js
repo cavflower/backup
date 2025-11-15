@@ -41,6 +41,7 @@ const ReservationCard = ({
     store_address,
     customer_name,
     customer_phone,
+    customer_gender,
     reservation_date,  // 後端使用 reservation_date
     time_slot,
     party_size,
@@ -86,6 +87,12 @@ const ReservationCard = ({
     return `預訂於 ${month}/${day} 上午${hours}:${minutes}`;
   };
 
+  const getCustomerTitle = (gender) => {
+    if (gender === 'male') return '先生';
+    if (gender === 'female') return '小姐';
+    return ''; // 其他情況不加稱謂
+  };
+
   const totalGuests = party_size + children_count;
 
   return (
@@ -106,7 +113,7 @@ const ReservationCard = ({
             <div className="customer-info">
               <FaUser className="customer-icon" />
               <div>
-                <h3>{customer_name}</h3>
+                <h3>{customer_name}{getCustomerTitle(customer_gender)}</h3>
                 {created_at && <p className="created-time">{formatCreatedAt(created_at)}</p>}
               </div>
             </div>
@@ -169,6 +176,11 @@ const ReservationCard = ({
           {/* 商家端按鈕 */}
           {viewMode === 'merchant' && (
             <>
+              {status === 'confirmed' && actions.onComplete && (
+                <button className="btn-complete" onClick={() => actions.onComplete(id)}>
+                  <FaCheck /> 完成
+                </button>
+              )}
               {status === 'pending' && actions.onAccept && (
                 <button className="btn-accept" onClick={() => actions.onAccept(id)}>
                   <FaCheck /> 接受訂位
@@ -177,11 +189,6 @@ const ReservationCard = ({
               {(status === 'pending' || status === 'confirmed') && actions.onCancel && (
                 <button className="btn-cancel" onClick={() => actions.onCancel(id)}>
                   <FaTimes /> 取消訂位
-                </button>
-              )}
-              {status === 'confirmed' && actions.onComplete && (
-                <button className="btn-complete" onClick={() => actions.onComplete(id)}>
-                  <FaCheck /> 完成
                 </button>
               )}
               {(status === 'completed' || status === 'cancelled') && actions.onDelete && (

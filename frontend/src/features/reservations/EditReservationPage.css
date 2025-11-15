@@ -148,6 +148,47 @@
   cursor: pointer;
   transition: all 0.3s;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.time-slot-btn .slot-time {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.time-slot-btn .slot-capacity {
+  font-size: 11px;
+  color: #666;
+  font-weight: 500;
+}
+
+.time-slot-btn.selected .slot-capacity {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.time-slot-btn .slot-status {
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.time-slot-btn .slot-status.available {
+  background: rgba(76, 175, 80, 0.1);
+  color: #4caf50;
+}
+
+.time-slot-btn.selected .slot-status.available {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.time-slot-btn .slot-status.full {
+  background: rgba(244, 67, 54, 0.1);
+  color: #f44336;
 }
 
 .time-slot-btn:hover:not(.disabled) {

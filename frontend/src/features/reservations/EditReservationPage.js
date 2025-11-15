@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../store/AuthContext';
 import { FaCalendarAlt, FaClock, FaUsers, FaStore, FaChild } from 'react-icons/fa';
-import { getReservationDetail, updateReservation } from '../../api/reservationApi';
+import { getReservationDetail, updateReservation, getPublicTimeSlots } from '../../api/reservationApi';
 import './EditReservationPage.css';
 
 const EditReservationPage = () => {
@@ -30,7 +30,7 @@ const EditReservationPage = () => {
 
   useEffect(() => {
     if (reservation) {
-      fetchAvailableTimeSlots(reservation.date);
+      fetchAvailableTimeSlots(reservation.reservation_date);
     }
   }, [reservation]);
 
@@ -73,22 +73,37 @@ const EditReservationPage = () => {
 
   const fetchAvailableTimeSlots = async (date) => {
     try {
-      // TODO: 實作店家可用時段 API
-      // const response = await getAvailableTimeSlots(reservation.store_id, date);
+      if (!reservation?.store) return;
       
-      // 暫時使用固定時段
-      const mockTimeSlots = [
-        { id: 1, time: '11:30-13:30', available: true },
-        { id: 2, time: '12:00-14:00', available: true },
-        { id: 3, time: '17:30-19:30', available: true },
-        { id: 4, time: '18:00-20:00', available: true },
-        { id: 5, time: '19:00-21:00', available: true },
-        { id: 6, time: '19:30-21:30', available: false },
-      ];
+      const selectedDate = new Date(date);
+      const dayOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][selectedDate.getDay()];
+      const dateStr = selectedDate.toISOString().split('T')[0];
       
-      setAvailableTimeSlots(mockTimeSlots);
+      const response = await getPublicTimeSlots(reservation.store, dateStr);
+      const allSlots = response.data.results || response.data;
+      
+      // 篩選該星期的時段
+      const daySlots = allSlots
+        .filter(slot => slot.day_of_week === dayOfWeek && slot.is_active)
+        .map(slot => {
+          const timeDisplay = slot.end_time 
+            ? `${slot.start_time.substring(0, 5)}-${slot.end_time.substring(0, 5)}`
+            : slot.start_time.substring(0, 5);
+          
+          return {
+            id: slot.id,
+            time: timeDisplay,
+            available: slot.available !== undefined ? slot.available : true,
+            capacity: slot.max_capacity,
+            max_party_size: slot.max_party_size,
+            current_bookings: slot.current_bookings || 0,
+          };
+        });
+      
+      setAvailableTimeSlots(daySlots);
     } catch (error) {
       console.error('Failed to fetch time slots:', error);
+      setError('載入可用時段失敗');
     }
   };
 
@@ -117,6 +132,16 @@ const EditReservationPage = () => {
     if (formData.partySize < 1) {
       alert('訂位人數至少需要 1 位');
       return;
+    }
+    
+    // 驗證總人數是否超過單筆限制
+    const selectedSlot = availableTimeSlots.find(slot => slot.time === formData.timeSlot);
+    if (selectedSlot) {
+      const totalPeople = formData.partySize + formData.childrenCount;
+      if (totalPeople > selectedSlot.max_party_size) {
+        alert(`總人數（大人+小孩）不能超過 ${selectedSlot.max_party_size} 人`);
+        return;
+      }
     }
     
     const totalGuests = formData.partySize + formData.childrenCount;
@@ -207,7 +232,7 @@ const EditReservationPage = () => {
               <div className="info-row">
                 <FaCalendarAlt className="info-icon" />
                 <div>
-                  <strong>{formatDate(reservation.date)}</strong>
+                  <strong>{formatDate(reservation.reservation_date)}</strong>
                   <p className="readonly-notice">訂位日期無法修改</p>
                 </div>
               </div>
@@ -228,8 +253,15 @@ const EditReservationPage = () => {
                   onClick={() => slot.available && handleInputChange('timeSlot', slot.time)}
                   disabled={!slot.available}
                 >
-                  {slot.time}
-                  {!slot.available && <span className="unavailable-tag">已滿</span>}
+                  <div className="slot-time">{slot.time}</div>
+                  <div className="slot-capacity">單筆限 {slot.max_party_size} 人</div>
+                  {slot.available ? (
+                    <div className="slot-status available">
+                      可訂 ({slot.capacity - slot.current_bookings} 位)
+                    </div>
+                  ) : (
+                    <div className="slot-status full">已滿</div>
+                  )}
                 </button>
               ))}
             </div>

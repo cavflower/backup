@@ -5,7 +5,7 @@ const TimeSlotForm = ({ slot, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     day_of_week: 'monday',
     start_time: '11:30',
-    end_time: '14:00',
+    end_time: '',
     max_capacity: 20,
     max_party_size: 10,
     is_active: true,
@@ -44,9 +44,9 @@ const TimeSlotForm = ({ slot, onSubmit, onCancel }) => {
   const validateForm = () => {
     const newErrors = {};
 
-    // 驗證開始時間和結束時間
-    if (formData.start_time >= formData.end_time) {
-      newErrors.end_time = '結束時間必須晚於開始時間';
+    // 驗證開始時間和結束時間（只在有設定結束時間時）
+    if (formData.end_time && formData.start_time >= formData.end_time) {
+      newErrors.end_time = '結束時間不得小於開始時間';
     }
 
     // 驗證人數上限
@@ -127,14 +127,14 @@ const TimeSlotForm = ({ slot, onSubmit, onCancel }) => {
               </div>
 
               <div className="form-group">
-                <label htmlFor="end_time">結束時間 *</label>
+                <label htmlFor="end_time">結束時間</label>
                 <select
                   id="end_time"
                   name="end_time"
                   value={formData.end_time}
                   onChange={handleChange}
-                  required
                 >
+                  <option value="">不設定</option>
                   {timeOptions.map((time) => (
                     <option key={time} value={time}>
                       {time}

@@ -428,38 +428,22 @@ const StoreSettingsPage = () => {
       <div className="store-settings-container">
         <div className="page-header">
           <h1>餐廳設定</h1>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <div className="header-actions">
             {storeId ? (
               <button
                 className={isPublished ? 'btn-unpublish' : 'btn-publish'}
                 onClick={isPublished ? handleUnpublish : handlePublish}
                 disabled={loading}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  border: 'none',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  backgroundColor: isPublished ? '#dc3545' : '#28a745',
-                  color: 'white',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                }}
               >
                 {loading ? '處理中...' : (isPublished ? '下架店家' : '上架店家')}
               </button>
             ) : (
-              <div style={{
-                padding: '8px 16px',
-                borderRadius: '4px',
-                backgroundColor: '#ffc107',
-                color: '#000',
-                fontSize: '14px',
-                fontWeight: '500',
-              }}>
+              <div className="warning-badge">
                 請先儲存店家資訊
               </div>
             )}
             <button
+              type="button"
               className="btn-back"
               onClick={() => navigate('/dashboard')}
             >

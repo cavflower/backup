@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Reservation, ReservationChangeLog, StoreReservationSettings, TimeSlot
+from .models import Reservation, ReservationChangeLog, TimeSlot
 
 
 @admin.register(Reservation)
@@ -107,62 +107,6 @@ class ReservationChangeLogAdmin(admin.ModelAdmin):
         'note',
         'created_at',
     ]
-
-
-@admin.register(StoreReservationSettings)
-class StoreReservationSettingsAdmin(admin.ModelAdmin):
-    list_display = [
-        'store',
-        'is_reservation_enabled',
-        'auto_confirm',
-        'min_party_size',
-        'max_party_size',
-    ]
-    list_filter = [
-        'is_reservation_enabled',
-        'auto_confirm',
-        'allow_customer_cancel',
-    ]
-    search_fields = ['store__name']
-    fieldsets = (
-        ('基本設定', {
-            'fields': (
-                'store',
-                'is_reservation_enabled',
-            )
-        }),
-        ('訂位規則', {
-            'fields': (
-                'min_party_size',
-                'max_party_size',
-                'advance_booking_days',
-                'min_advance_hours',
-            )
-        }),
-        ('時段設定', {
-            'fields': (
-                'available_time_slots',
-                'slot_duration_minutes',
-            )
-        }),
-        ('確認與提醒', {
-            'fields': (
-                'auto_confirm',
-                'send_confirmation_email',
-                'send_reminder_sms',
-                'reminder_hours_before',
-            )
-        }),
-        ('取消政策', {
-            'fields': (
-                'allow_customer_cancel',
-                'cancel_hours_before',
-            )
-        }),
-        ('特殊日期', {
-            'fields': ('blocked_dates',)
-        }),
-    )
 
 
 @admin.register(TimeSlot)

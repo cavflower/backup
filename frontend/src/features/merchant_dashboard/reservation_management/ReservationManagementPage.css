@@ -511,12 +511,25 @@
   transition: all 0.3s;
 }
 
+.btn-edit:disabled,
+.btn-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #ccc;
+}
+
+.btn-edit:disabled:hover,
+.btn-delete:disabled:hover {
+  background: #ccc;
+  transform: none;
+}
+
 .btn-edit {
   background: #2196f3;
   color: white;
 }
 
-.btn-edit:hover {
+.btn-edit:hover:not(:disabled) {
   background: #1976d2;
 }
 
@@ -525,7 +538,7 @@
   color: white;
 }
 
-.btn-delete:hover {
+.btn-delete:hover:not(:disabled) {
   background: #da190b;
 }
 

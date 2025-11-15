@@ -82,8 +82,12 @@ export const getReservationChangeLogs = (id) => {
  * @param {number} storeId - 店家 ID
  * @returns {Promise}
  */
-export const getPublicTimeSlots = (storeId) => {
-  return api.get(`/time-slots/?store_id=${storeId}`);
+export const getPublicTimeSlots = (storeId, date = null) => {
+  const params = new URLSearchParams({ store_id: storeId });
+  if (date) {
+    params.append('date', date);
+  }
+  return api.get(`/time-slots/?${params.toString()}`);
 };
 
 // ==================== 商家端 API ====================

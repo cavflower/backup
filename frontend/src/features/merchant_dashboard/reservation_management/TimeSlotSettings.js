@@ -128,14 +128,16 @@ const TimeSlotSettings = ({ timeSlots, onSave, onDelete }) => {
                       <button 
                         className="btn-edit"
                         onClick={() => handleEdit(slot)}
-                        title="編輯時段"
+                        disabled={slot.has_reservations}
+                        title={slot.has_reservations ? "此時段已有訂位，無法編輯" : "編輯時段"}
                       >
                         <FaEdit /> 編輯
                       </button>
                       <button 
                         className="btn-delete"
                         onClick={() => onDelete(slot.id)}
-                        title="刪除時段"
+                        disabled={slot.has_reservations}
+                        title={slot.has_reservations ? "此時段已有訂位，無法刪除" : "刪除時段"}
                       >
                         <FaTrash /> 刪除
                       </button>

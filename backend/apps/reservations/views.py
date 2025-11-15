@@ -5,7 +5,7 @@ from django.utils import timezone
 from django.db.models import Q
 import hashlib
 
-from .models import Reservation, ReservationChangeLog, StoreReservationSettings, TimeSlot
+from .models import Reservation, ReservationChangeLog, TimeSlot
 from .serializers import (
     ReservationSerializer,
     ReservationCreateSerializer,
@@ -13,7 +13,6 @@ from .serializers import (
     ReservationCancelSerializer,
     GuestReservationVerifySerializer,
     ReservationChangeLogSerializer,
-    StoreReservationSettingsSerializer,
     TimeSlotSerializer,
     MerchantReservationSerializer,
     MerchantReservationUpdateSerializer,
@@ -56,8 +55,97 @@ class ReservationViewSet(viewsets.ModelViewSet):
     
     def create(self, request, *args, **kwargs):
         """建立訂位"""
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Received reservation data: {request.data}")
+        
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        
+        # 驗證容量和單筆人數限制
+        validated_data = serializer.validated_data
+        time_slot_str = validated_data.get('time_slot')  # 字串格式如 "18:00-20:00"
+        store = validated_data.get('store')
+        reservation_date = validated_data.get('reservation_date')
+        party_size = validated_data.get('party_size', 0)
+        children_count = validated_data.get('children_count', 0)
+        total_party_size = party_size + children_count
+        
+        # 從字串解析時間並找到對應的 TimeSlot 模型
+        try:
+            from datetime import datetime
+            
+            # 處理時段格式：可能是 "18:00-20:00" 或 "18:00"
+            if '-' in time_slot_str:
+                start_time_str, end_time_str = time_slot_str.split('-')
+                start_time = datetime.strptime(start_time_str.strip(), '%H:%M').time()
+                end_time = datetime.strptime(end_time_str.strip(), '%H:%M').time()
+                
+                day_of_week = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'][reservation_date.weekday()]
+                
+                time_slot_obj = TimeSlot.objects.filter(
+                    store=store,
+                    day_of_week=day_of_week,
+                    start_time=start_time,
+                    end_time=end_time,
+                    is_active=True
+                ).first()
+            else:
+                # 只有開始時間
+                start_time = datetime.strptime(time_slot_str.strip(), '%H:%M').time()
+                
+                day_of_week = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'][reservation_date.weekday()]
+                
+                time_slot_obj = TimeSlot.objects.filter(
+                    store=store,
+                    day_of_week=day_of_week,
+                    start_time=start_time,
+                    end_time__isnull=True,
+                    is_active=True
+                ).first()
+            
+            if not time_slot_obj:
+                return Response(
+                    {'error': '找不到對應的訂位時段'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except (ValueError, AttributeError) as e:
+            return Response(
+                {'error': f'時段格式錯誤: {str(e)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 檢查單筆人數限制
+        if total_party_size > time_slot_obj.max_party_size:
+            return Response(
+                {'error': f'訂位人數超過單筆限制（最多 {time_slot_obj.max_party_size} 人）'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 檢查時段容量
+        from django.db.models import Sum
+        reservations = Reservation.objects.filter(
+            time_slot=time_slot_str,
+            store=store,
+            reservation_date=reservation_date,
+            status__in=['pending', 'confirmed']
+        )
+        
+        result = reservations.aggregate(
+            total_adults=Sum('party_size'),
+            total_children=Sum('children_count')
+        )
+        
+        current_adults = result['total_adults'] or 0
+        current_children = result['total_children'] or 0
+        current_bookings = current_adults + current_children
+        
+        if current_bookings + total_party_size > time_slot_obj.max_capacity:
+            return Response(
+                {'error': f'此時段容量不足（剩餘 {time_slot_obj.max_capacity - current_bookings} 人）'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         reservation = serializer.save()
         
         # 返回完整訂位資訊
@@ -336,26 +424,6 @@ class MerchantReservationViewSet(viewsets.ModelViewSet):
         return Response(stats)
 
 
-class StoreReservationSettingsViewSet(viewsets.ModelViewSet):
-    """店家訂位設定 ViewSet"""
-    queryset = StoreReservationSettings.objects.all()
-    serializer_class = StoreReservationSettingsSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_queryset(self):
-        """僅返回商家自己店家的設定"""
-        user = self.request.user
-        
-        if not hasattr(user, 'merchant_profile'):
-            return StoreReservationSettings.objects.none()
-        
-        try:
-            store = user.merchant_profile.store
-            return StoreReservationSettings.objects.filter(store=store)
-        except:
-            return StoreReservationSettings.objects.none()
-
-
 class TimeSlotViewSet(viewsets.ModelViewSet):
     """訂位時段 ViewSet"""
     queryset = TimeSlot.objects.all()
@@ -387,6 +455,95 @@ class TimeSlotViewSet(viewsets.ModelViewSet):
             serializer.save(store=store)
         except Exception as e:
             raise permissions.PermissionDenied(f"無法取得店家資訊: {str(e)}")
+    
+    def update(self, request, *args, **kwargs):
+        """更新時段前檢查是否有訂位"""
+        instance = self.get_object()
+        
+        # 構造時間字串來檢查訂位
+        if instance.end_time:
+            time_str = f"{instance.start_time.strftime('%H:%M')}-{instance.end_time.strftime('%H:%M')}"
+        else:
+            time_str = instance.start_time.strftime('%H:%M')
+        
+        # 檢查該時段（相同星期幾）是否有訂位
+        from django.utils import timezone
+        from datetime import datetime, timedelta
+        
+        # 獲取該星期幾的所有未來日期的訂位
+        day_of_week_map = {
+            'monday': 0, 'tuesday': 1, 'wednesday': 2, 'thursday': 3,
+            'friday': 4, 'saturday': 5, 'sunday': 6
+        }
+        target_weekday = day_of_week_map[instance.day_of_week]
+        
+        # 檢查未來的訂位日期是否符合該星期幾
+        today = timezone.now().date()
+        future_reservations = Reservation.objects.filter(
+            time_slot=time_str,
+            store=instance.store,
+            reservation_date__gte=today,
+            status__in=['pending', 'confirmed']
+        )
+        
+        # 過濾出符合該星期幾的訂位
+        has_reservations = False
+        for reservation in future_reservations:
+            if reservation.reservation_date.weekday() == target_weekday:
+                has_reservations = True
+                break
+        
+        if has_reservations:
+            return Response(
+                {'error': '此時段已有訂位，無法編輯。若要修改，請先取消或完成所有相關訂位。'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        return super().update(request, *args, **kwargs)
+    
+    def destroy(self, request, *args, **kwargs):
+        """刪除時段前檢查是否有訂位"""
+        instance = self.get_object()
+        
+        # 構造時間字串來檢查訂位
+        if instance.end_time:
+            time_str = f"{instance.start_time.strftime('%H:%M')}-{instance.end_time.strftime('%H:%M')}"
+        else:
+            time_str = instance.start_time.strftime('%H:%M')
+        
+        # 檢查該時段（相同星期幾）是否有訂位
+        from django.utils import timezone
+        
+        # 獲取該星期幾的所有未來日期的訂位
+        day_of_week_map = {
+            'monday': 0, 'tuesday': 1, 'wednesday': 2, 'thursday': 3,
+            'friday': 4, 'saturday': 5, 'sunday': 6
+        }
+        target_weekday = day_of_week_map[instance.day_of_week]
+        
+        # 檢查未來的訂位日期是否符合該星期幾
+        today = timezone.now().date()
+        future_reservations = Reservation.objects.filter(
+            time_slot=time_str,
+            store=instance.store,
+            reservation_date__gte=today,
+            status__in=['pending', 'confirmed']
+        )
+        
+        # 過濾出符合該星期幾的訂位
+        has_reservations = False
+        for reservation in future_reservations:
+            if reservation.reservation_date.weekday() == target_weekday:
+                has_reservations = True
+                break
+        
+        if has_reservations:
+            return Response(
+                {'error': '此時段已有訂位，無法刪除。若要刪除，請先取消或完成所有相關訂位。'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        return super().destroy(request, *args, **kwargs)
 
 
 class PublicTimeSlotViewSet(viewsets.ReadOnlyModelViewSet):
@@ -408,3 +565,22 @@ class PublicTimeSlotViewSet(viewsets.ReadOnlyModelViewSet):
                 return TimeSlot.objects.none()
         
         return queryset.order_by('day_of_week', 'start_time')
+    
+    def get_serializer_class(self):
+        """根據 query param 決定使用哪個 serializer"""
+        if self.request.query_params.get('date'):
+            from .serializers import TimeSlotWithAvailabilitySerializer
+            return TimeSlotWithAvailabilitySerializer
+        return TimeSlotSerializer
+    
+    def get_serializer_context(self):
+        """傳遞日期給 serializer"""
+        context = super().get_serializer_context()
+        date_str = self.request.query_params.get('date')
+        if date_str:
+            from datetime import datetime
+            try:
+                context['date'] = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+        return context
