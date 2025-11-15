@@ -8,7 +8,7 @@ const ProfilePage = () => {
     username: '',
     email: '',
     phone_number: '',
-    address: '', // 地址欄位，將根據使用者類型決定是否顯示
+    gender: 'female',
   });
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState('');
@@ -20,7 +20,7 @@ const ProfilePage = () => {
         username: user.username || '',
         email: user.email || '',
         phone_number: user.phone_number || '',
-        address: user.address || '', // 商家地址
+        gender: user.gender || 'female',
       });
       // 如果使用者有頭像 URL，則使用它，否則使用預設圖片
       setAvatarPreview(user.avatar_url || 'https://via.placeholder.com/150');
@@ -64,10 +64,6 @@ const ProfilePage = () => {
       const initialValue = user[key] || '';
       // 只有在欄位有變更時才加入
       if (formData[key] !== initialValue) {
-        // 如果是顧客，則不包含 address 欄位
-        if (key === 'address' && user.user_type === 'customer') {
-          return;
-        }
         submissionData[key] = formData[key];
       }
     });
@@ -148,19 +144,41 @@ const ProfilePage = () => {
               />
             </div>
 
-            {/* 只有商家 (merchant) 才能看到並修改地址 */}
-            {user.user_type === 'merchant' && (
-              <div className="form-group">
-                <label htmlFor="address">地址</label>
-                <input
-                  type="text"
-                  id="address"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                />
+            <div className="form-group">
+              <label htmlFor="gender">性別</label>
+              <div className="gender-radio-group">
+                <label className="radio-option">
+                  <input
+                    type="radio"
+                    name="gender"
+                    value="female"
+                    checked={formData.gender === 'female'}
+                    onChange={handleChange}
+                  />
+                  <span>小姐</span>
+                </label>
+                <label className="radio-option">
+                  <input
+                    type="radio"
+                    name="gender"
+                    value="male"
+                    checked={formData.gender === 'male'}
+                    onChange={handleChange}
+                  />
+                  <span>先生</span>
+                </label>
+                <label className="radio-option">
+                  <input
+                    type="radio"
+                    name="gender"
+                    value="other"
+                    checked={formData.gender === 'other'}
+                    onChange={handleChange}
+                  />
+                  <span>其他</span>
+                </label>
               </div>
-            )}
+            </div>
 
             <button type="submit" className="submit-btn">
               儲存變更

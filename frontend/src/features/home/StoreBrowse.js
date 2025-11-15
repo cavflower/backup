@@ -29,39 +29,33 @@ function StoreBrowse() {
       </div>
 
       <div className="row g-4">
-        {/* 內用選項 */}
+        {/* 線上訂位選項 */}
         <div className="col-md-6">
           <div className="card h-100">
             <div className="card-body text-center">
-              <i className="bi bi-shop fs-1 text-primary mb-3"></i>
-              <h3 className="card-title mb-4">內用點餐</h3>
+              <i className="bi bi-calendar-check fs-1 text-primary mb-3"></i>
+              <h3 className="card-title mb-4">線上訂位</h3>
               
               <div className="mb-4">
-                <label className="form-label">選擇用餐人數</label>
-                <select 
-                  className="form-select form-select-lg mb-3" 
-                  value={selectedSeats} 
-                  onChange={handleSeatChange}
-                >
-                  {seatOptions.map(num => (
-                    <option key={num} value={num}>{num} 位</option>
-                  ))}
-                </select>
+                <div className="alert alert-info">
+                  <i className="bi bi-info-circle me-2"></i>
+                  提前預訂，享受無縫用餐體驗
+                </div>
               </div>
 
               <div className="d-grid gap-2">
                 <button 
                   className="btn btn-primary btn-lg mb-2"
-                  onClick={() => navigate('/dine-in-order')}
+                  onClick={() => navigate('/reservation/new')}
                 >
-                  <i className="bi bi-arrow-right-circle me-2"></i>
-                  開始點餐
+                  <i className="bi bi-calendar-plus me-2"></i>
+                  立即訂位
                 </button>
               </div>
 
               <small className="text-muted">
                 <i className="bi bi-info-circle me-1"></i>
-                可線上點餐並至櫃台結帳
+                {user ? '會員快速訂位，無需填寫資料' : '訪客訂位需填寫聯絡資訊'}
               </small>
             </div>
           </div>
