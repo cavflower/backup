@@ -10,7 +10,8 @@ import {
   FaUsers, 
   FaChartLine, 
   FaUtensils, 
-  FaBullhorn 
+  FaBullhorn,
+  FaGift
 } from 'react-icons/fa';
 
 const MerchantDashboard = () => {
@@ -63,6 +64,13 @@ const MerchantDashboard = () => {
       description: '建立與管理您的行銷活動',
       icon: FaBullhorn,
       path: '/merchant/promotions',
+    },
+    {
+      id: 'loyalty',
+      name: '會員制度',
+      description: '設定點數規則、會員等級與兌換商品',
+      icon: FaGift,
+      path: '/merchant/loyalty',
     },
   ];
 

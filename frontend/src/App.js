@@ -33,6 +33,7 @@ import OrderPage from './features/home/OrderPage';
 import CheckoutPage from './features/home/CheckoutPage';
 import ConfirmationPage from './features/home/ConfirmationPage';
 import ReviewPage from './features/home/ReviewPage';
+import LoyaltyManagement from './features/loyalty_management/LoyaltyManagement';
 
 // Context
 import { useAuth } from './store/AuthContext'; 
@@ -183,6 +184,16 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <ProfilePage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* 會員制度管理頁面路由 */}
+              <Route
+                path="/merchant/loyalty"
+                element={
+                  <ProtectedRoute>
+                    <LoyaltyManagement />
                   </ProtectedRoute>
                 }
               />
