@@ -640,6 +640,17 @@
   margin-bottom: 16px;
 }
 
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.form-row .form-group {
+  margin-bottom: 0;
+}
+
 .form-group label {
   display: block;
   font-size: 13px;
@@ -706,13 +717,13 @@
 
 /* Buttons */
 .btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
+padding: 10px 10px; /* 寬度改短：將左右內邊距從 20px 改為 10px */
+border: none;
+border-radius: 6px;
+font-size: 14px;
+font-weight: 500;
+cursor: pointer;
+transition: all 0.3s;
 }
 
 .btn-primary {

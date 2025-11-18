@@ -157,7 +157,7 @@ const PointRulesSection = ({ pointRules, setPointRules }) => {
           )}
         </div>
         <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-          + 新增規則
+          新增規則
         </button>
       </div>
 
@@ -676,7 +676,7 @@ const RedemptionsSection = ({ redemptions, setRedemptions }) => {
           )}
         </div>
         <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-          + 新增商品
+          新增商品
         </button>
       </div>
 
@@ -746,10 +746,10 @@ const RedemptionsSection = ({ redemptions, setRedemptions }) => {
 
             <div className="modal-body">
               <div className="form-group">
-                <label>商品名稱 *</label>
+                <label>名稱 *</label>
                 <input
                   type="text"
-                  placeholder="例如：免費飲料、優惠券"
+                  placeholder="如：免費飲料"
                   value={formData.title}
                   onChange={(e) =>
                     setFormData({ ...formData, title: e.target.value })
@@ -757,47 +757,49 @@ const RedemptionsSection = ({ redemptions, setRedemptions }) => {
                 />
               </div>
 
+              <div className="form-row">
+                <div className="form-group">
+                  <label>所需點數 *</label>
+                  <input
+                    type="number"
+                    placeholder="500"
+                    min="1"
+                    value={formData.required_points}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        required_points: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>庫存</label>
+                  <input
+                    type="number"
+                    placeholder="不限量"
+                    min="0"
+                    value={formData.inventory || ''}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        inventory: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+
               <div className="form-group">
-                <label>商品描述</label>
+                <label>描述</label>
                 <textarea
-                  placeholder="例如：價值100元的任意飲料"
+                  placeholder="如：價值100元的任意飲料"
                   value={formData.description}
                   onChange={(e) =>
                     setFormData({ ...formData, description: e.target.value })
                   }
                   rows="2"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>所需點數 *</label>
-                <input
-                  type="number"
-                  placeholder="例如：500"
-                  min="1"
-                  value={formData.required_points}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      required_points: e.target.value,
-                    })
-                  }
-                />
-              </div>
-
-              <div className="form-group">
-                <label>庫存數量（可選）</label>
-                <input
-                  type="number"
-                  placeholder="不填表示不限量"
-                  min="0"
-                  value={formData.inventory || ''}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      inventory: e.target.value,
-                    })
-                  }
                 />
               </div>
             </div>
