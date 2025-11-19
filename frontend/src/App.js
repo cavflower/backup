@@ -33,6 +33,7 @@ import OrderPage from './features/home/OrderPage';
 import CheckoutPage from './features/home/CheckoutPage';
 import ConfirmationPage from './features/home/ConfirmationPage';
 import ReviewPage from './features/home/ReviewPage';
+import TakeoutOrderPage from './features/takeout/TakeoutOrderPage';
 
 // Context
 import { useAuth } from './store/AuthContext'; 
@@ -104,10 +105,13 @@ function App() {
               />
           {/* 點入特定店家 頁面 */}
               <Route path="/store/:storeId" element={<StorePage />} />
-          
+
           {/* 點餐主頁面 */}
               <Route path="/store/:storeId/order" element={<OrderPage />} />
           
+          {/* 外帶點餐 頁面 */}
+              <Route path="/store/:storeId/takeout" element={<TakeoutOrderPage />} />
+
           {/* 線上結帳 頁面 */}
               <Route path="/checkout" element={<CheckoutPage />} />
           
