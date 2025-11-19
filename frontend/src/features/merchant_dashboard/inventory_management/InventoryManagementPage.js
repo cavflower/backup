@@ -101,7 +101,7 @@ function InventoryManagementPage() {
     <div className="inventory-management-page">
       <div className="page-header">
         <h1>原物料管理</h1>
-        <button onClick={() => navigate('/merchant-dashboard')} className="back-button">
+        <button onClick={() => navigate('/dashboard')} className="back-button">
           返回儀表板
         </button>
       </div>
