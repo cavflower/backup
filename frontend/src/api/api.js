@@ -50,6 +50,11 @@ const getUserTypeFromUrl = (url, method = 'get') => {
     return 'merchant';
   }
   
+  // 原物料管理相關的 API，使用 merchant token
+  if (url.includes('/inventory/')) {
+    return 'merchant';
+  }
+  
   // 如果是店家相關的 API，使用 merchant token（除了 published 和 retrieve API）
   // retrieve API 是 GET /stores/{id}/，用於查看已上架店家的詳細資訊，不需要 token
   if (url.includes('/stores/') && !url.includes('/stores/published/')) {

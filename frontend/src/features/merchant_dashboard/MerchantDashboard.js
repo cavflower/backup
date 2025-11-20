@@ -11,7 +11,8 @@ import {
   FaChartLine, 
   FaUtensils, 
   FaBullhorn,
-  FaGift
+  FaGift,
+  FaBoxes
 } from 'react-icons/fa';
 
 const MerchantDashboard = () => {
@@ -45,6 +46,15 @@ const MerchantDashboard = () => {
       path: '/merchant/reservations',
     },
     {
+
+      id: 'inventory-management',
+      name: '原物料管理',
+      description: '管理原料的進出貨記錄',
+      icon: FaBoxes,
+      path: '/merchant/inventory',
+    },
+
+    {
       id: 'reports',
       name: '營運報表',
       description: '查看銷售、顧客與營運相關報表',
@@ -65,6 +75,7 @@ const MerchantDashboard = () => {
       icon: FaBullhorn,
       path: '/merchant/promotions',
     },
+
     {
       id: 'loyalty',
       name: '會員制度',
@@ -72,6 +83,7 @@ const MerchantDashboard = () => {
       icon: FaGift,
       path: '/merchant/loyalty',
     },
+
   ];
 
   return (

@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'apps.loyalty',
     'apps.reports',
     'apps.intelligence',
+    'apps.inventory',
 ]
 
 MIDDLEWARE = [

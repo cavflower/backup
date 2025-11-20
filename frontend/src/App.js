@@ -22,6 +22,7 @@ import ProductManagementPage from './features/merchant_dashboard/product_managem
 import PlanSelectionPage from './features/plan_selection/PlanSelectionPage'; // 匯入方案選擇頁面
 import StoreSettingsPage from './features/merchant_dashboard/store_settings/StoreSettingsPage'; // 匯入餐廳設定頁面
 import ReservationManagementPage from './features/merchant_dashboard/reservation_management/ReservationManagementPage'; // 匯入訂位管理頁面
+import InventoryManagementPage from './features/merchant_dashboard/inventory_management/InventoryManagementPage'; // 匯入原物料管理頁面
 import ReservationPage from './features/reservations/ReservationPage'; // 導入顧客訂位頁面
 import ReservationSuccessPage from './features/reservations/ReservationSuccessPage'; // 導入訂位成功頁面
 import MyReservationsPage from './features/reservations/MyReservationsPage'; // 導入我的訂位頁面
@@ -34,6 +35,7 @@ import CheckoutPage from './features/home/CheckoutPage';
 import ConfirmationPage from './features/home/ConfirmationPage';
 import ReviewPage from './features/home/ReviewPage';
 import LoyaltyManagement from './features/loyalty_management/LoyaltyManagement';
+
 
 // Context
 import { useAuth } from './store/AuthContext'; 
@@ -157,7 +159,16 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-
+              
+              {/* 原物料管理頁面路由 */}
+              <Route
+                path="/merchant/inventory"
+                element={
+                  <ProtectedRoute>
+                    <InventoryManagementPage />
+                  </ProtectedRoute>
+                }
+              />
               {/* 餐廳設定頁面路由 */}
               <Route
                 path="/merchant/settings"
