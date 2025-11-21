@@ -38,7 +38,7 @@ const Sidebar = ({ isOpen }) => {
         <p className="sidebar-section-title">店家管理</p>
         <li><a href="/merchant/dashboard">📊 儀表板</a></li>
         <li><a href="/merchant/products">📦 商品管理</a></li>
-        <li><a href="/merchant/staffing">👨‍🍳 智慧排班</a></li>
+        <li><a href="/merchant/schedule">👨‍🍳 排班管理</a></li>
       </ul>
     </aside>
   );

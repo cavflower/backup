@@ -4,6 +4,7 @@ import { useAuth } from '../../store/AuthContext';
 import FeatureCard from './components/FeatureCard';
 import './MerchantDashboard.css';
 
+
 import { 
   FaStore, 
   FaClipboardList, 
@@ -12,7 +13,14 @@ import {
   FaUtensils, 
   FaBullhorn,
   FaGift,
-  FaBoxes
+  FaBoxes,
+  FaStore,
+  FaClipboardList,
+  FaUsers,
+  FaChartLine,
+  FaUtensils,
+  FaBullhorn,
+  FaCalendarCheck,
 } from 'react-icons/fa';
 
 const MerchantDashboard = () => {
@@ -82,6 +90,14 @@ const MerchantDashboard = () => {
       description: '設定點數規則、會員等級與兌換商品',
       icon: FaGift,
       path: '/merchant/loyalty',
+    },
+
+    {
+      id: 'schedule-management',
+      name: '排班管理',
+      description: '建立班表、追蹤缺口與智慧排班',
+      icon: FaCalendarCheck,
+      path: '/merchant/schedule',
     },
 
   ];

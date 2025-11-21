@@ -28,6 +28,7 @@ import ReservationSuccessPage from './features/reservations/ReservationSuccessPa
 import MyReservationsPage from './features/reservations/MyReservationsPage'; // 導入我的訂位頁面
 import EditReservationPage from './features/reservations/EditReservationPage'; // 導入編輯訂位頁面
 import GuestReservationLookup from './features/reservations/GuestReservationLookup'; // 導入訪客查詢頁面
+import ScheduleManagementPage from './features/merchant_dashboard/schedule_management/ScheduleManagementPage';
 import StoreBrowse from './features/home/StoreBrowse';
 import StorePage from './features/home/StorePage';
 import OrderPage from './features/home/OrderPage';
@@ -179,6 +180,15 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <StoreSettingsPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/merchant/schedule"
+                element={
+                  <ProtectedRoute>
+                    <ScheduleManagementPage />
                   </ProtectedRoute>
                 }
               />
