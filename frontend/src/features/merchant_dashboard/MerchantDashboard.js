@@ -14,13 +14,7 @@ import {
   FaBullhorn,
   FaGift,
   FaBoxes,
-  FaStore,
-  FaClipboardList,
-  FaUsers,
-  FaChartLine,
-  FaUtensils,
-  FaBullhorn,
-  FaCalendarCheck,
+  FaCalendarCheck
 } from 'react-icons/fa';
 
 const MerchantDashboard = () => {
