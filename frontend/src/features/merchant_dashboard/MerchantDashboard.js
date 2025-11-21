@@ -4,13 +4,14 @@ import { useAuth } from '../../store/AuthContext';
 import FeatureCard from './components/FeatureCard';
 import './MerchantDashboard.css';
 
-import { 
-  FaStore, 
-  FaClipboardList, 
-  FaUsers, 
-  FaChartLine, 
-  FaUtensils, 
-  FaBullhorn 
+import {
+  FaStore,
+  FaClipboardList,
+  FaUsers,
+  FaChartLine,
+  FaUtensils,
+  FaBullhorn,
+  FaCalendarCheck,
 } from 'react-icons/fa';
 
 const MerchantDashboard = () => {
@@ -63,6 +64,13 @@ const MerchantDashboard = () => {
       description: '建立與管理您的行銷活動',
       icon: FaBullhorn,
       path: '/merchant/promotions',
+    },
+    {
+      id: 'schedule-management',
+      name: '排班管理',
+      description: '建立班表、追蹤缺口與智慧排班',
+      icon: FaCalendarCheck,
+      path: '/merchant/schedule',
     },
   ];
 
