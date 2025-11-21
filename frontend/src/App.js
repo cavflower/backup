@@ -22,12 +22,6 @@ import ProductManagementPage from './features/merchant_dashboard/product_managem
 import PlanSelectionPage from './features/plan_selection/PlanSelectionPage'; // 匯入方案選擇頁面
 import StoreSettingsPage from './features/merchant_dashboard/store_settings/StoreSettingsPage'; // 匯入餐廳設定頁面
 import ScheduleManagementPage from './features/merchant_dashboard/schedule_management/ScheduleManagementPage';
-import ReservationManagementPage from './features/merchant_dashboard/reservation_management/ReservationManagementPage'; // 匯入訂位管理頁面
-import ReservationPage from './features/reservations/ReservationPage'; // 導入顧客訂位頁面
-import ReservationSuccessPage from './features/reservations/ReservationSuccessPage'; // 導入訂位成功頁面
-import MyReservationsPage from './features/reservations/MyReservationsPage'; // 導入我的訂位頁面
-import EditReservationPage from './features/reservations/EditReservationPage'; // 導入編輯訂位頁面
-import GuestReservationLookup from './features/reservations/GuestReservationLookup'; // 導入訪客查詢頁面
 import StoreBrowse from './features/home/StoreBrowse';
 import StorePage from './features/home/StorePage';
 import OrderPage from './features/home/OrderPage';
@@ -118,17 +112,6 @@ function App() {
           {/* 評價頁面 */}
               <Route path="/review/:orderId" element={<ReviewPage />} />
               
-          {/* 顧客訂位流程 */}
-              <Route path="/reservation/new/:storeId" element={<ReservationPage />} />
-              <Route path="/reservation/success" element={<ReservationSuccessPage />} />
-              <Route path="/reservation/edit/:reservationId" element={<EditReservationPage />} />
-              
-              {/* 訪客查詢訂位 */}
-              <Route path="/guest-lookup" element={<GuestReservationLookup />} />
-              
-              {/* 我的訂位頁面（訪客也可查看）*/}
-              <Route path="/my-reservations" element={<MyReservationsPage />} />
-              
               {/* 店家儀表板 (/dashboard)：受保護 */}
               <Route 
                 path="/dashboard"
@@ -163,16 +146,6 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <ScheduleManagementPage />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* 訂位管理頁面路由 */}
-              <Route
-                path="/merchant/reservations"
-                element={
-                  <ProtectedRoute>
-                    <ReservationManagementPage />
                   </ProtectedRoute>
                 }
               />
