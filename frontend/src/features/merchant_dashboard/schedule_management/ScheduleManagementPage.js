@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../../store/AuthContext';
+import { getScheduleData, saveScheduleData, exportScheduleCSV } from '../../../api/scheduleApi';
 import './ScheduleManagementPage.css';
 
 const shiftPresets = {
@@ -115,18 +116,9 @@ const ScheduleManagementPage = () => {
   const [editingStaffId, setEditingStaffId] = useState(null);
   const [saveStatus, setSaveStatus] = useState('');
 
-  // 取得店家特定的 localStorage key
-  const getStorageKey = () => {
-    if (!user) return null;
-    const merchantId = user.id || user.firebase_uid || user.username;
-    return `merchantScheduleData_${merchantId}`;
-  };
-
-  // 當用戶改變時，載入該店家的資料
+  // 當用戶改變時，從 API 載入該店家的資料
   useEffect(() => {
-    const storageKey = getStorageKey();
-    if (!storageKey) {
-      // 如果沒有用戶，重置為空值
+    if (!user) {
       setShifts([]);
       setStaff([]);
       setShiftForm(defaultShiftForm);
@@ -136,38 +128,80 @@ const ScheduleManagementPage = () => {
       return;
     }
 
-    const stored = localStorage.getItem(storageKey);
-    if (stored) {
+    const loadScheduleData = async () => {
       try {
-        const parsed = JSON.parse(stored);
-        if (parsed?.shifts) setShifts(parsed.shifts);
-        if (parsed?.staff) setStaff(parsed.staff);
+        const response = await getScheduleData();
+        const data = response.data;
+        
+        // 轉換 API 資料格式為前端格式
+        if (data.shifts) {
+          const formattedShifts = data.shifts.map(shift => {
+            // 確保 assignedStaffIds 正確設置
+            let assignedStaffIds = [];
+            if (Array.isArray(shift.assigned_staff) && shift.assigned_staff.length > 0) {
+              assignedStaffIds = shift.assigned_staff.map(s => (typeof s === 'object' ? s.id : s)).filter(id => id != null && id !== undefined);
+            }
+            
+            return {
+              ...shift,
+              assignedStaffIds: assignedStaffIds,
+              staffNeeded: shift.staff_needed,
+              startHour: shift.start_hour,
+              startMinute: shift.start_minute,
+              endHour: shift.end_hour,
+              endMinute: shift.end_minute,
+              shiftType: shift.shift_type,
+              // 保留 assigned_staff 以便向後兼容，但優先使用 assignedStaffIds
+            };
+          });
+          setShifts(formattedShifts);
+        } else {
+          setShifts([]);
+        }
+        
+        if (data.staff) {
+          setStaff(data.staff);
+        } else {
+          setStaff([]);
+        }
       } catch (error) {
-        console.error('Failed to parse stored schedule data', error);
-        // 如果解析失敗，重置為空值
+        console.error('載入排班資料失敗:', error);
+        console.error('錯誤詳情:', error.response?.data);
+        // 如果是 401 或 403 錯誤，顯示特定訊息
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          // 權限錯誤，但不顯示在頁面上，只在控制台記錄
+          console.warn('權限不足，請確認您已登入店家帳號');
+        } else if (error.response?.status === 404) {
+          // API 不存在，但不顯示錯誤
+          console.warn('API 路徑不存在');
+        } else if (error.response?.status === 500) {
+          // 500 錯誤可能是資料表不存在，不顯示錯誤，只記錄
+          console.warn('伺服器錯誤（可能是資料表尚未建立）:', error.response?.data?.error);
+        } else {
+          // 其他錯誤，只在控制台記錄，不顯示在頁面上
+          console.warn('載入資料時發生錯誤:', error.response?.data?.error || error.message);
+        }
+        // 無論如何都設置為空資料，不顯示錯誤訊息
         setShifts([]);
         setStaff([]);
       }
-    } else {
-      // 如果沒有儲存的資料，顯示空值
-      setShifts([]);
-      setStaff([]);
-    }
-    // 重置編輯狀態
-    setShiftForm(defaultShiftForm);
-    setStaffForm(defaultStaffForm);
-    setEditingShiftId(null);
-    setEditingStaffId(null);
-  }, [user]);
+      // 注意：不在載入資料後重置表單，避免用戶輸入時被清空
+      // 表單狀態應該由用戶操作來控制，而不是由資料載入來控制
+    };
+
+    loadScheduleData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]); // 只依賴 user.id，避免 user 對象變化時重新執行
 
   const staffIdSet = useMemo(() => new Set(staff.map((member) => member.id)), [staff]);
 
   const summary = useMemo(() => {
-    const totalNeeded = shifts.reduce((sum, shift) => sum + shift.staffNeeded, 0);
-    const totalAssigned = shifts.reduce(
-      (sum, shift) => sum + shift.assignedStaffIds.filter((id) => staffIdSet.has(id)).length,
-      0
-    );
+    const totalNeeded = shifts.reduce((sum, shift) => sum + (shift.staffNeeded || shift.staff_needed || 0), 0);
+    const assignedIds = shifts.reduce((acc, shift) => {
+      const ids = shift.assignedStaffIds || (shift.assigned_staff ? shift.assigned_staff.map(s => s.id) : []);
+      return acc.concat(ids);
+    }, []);
+    const totalAssigned = assignedIds.filter((id) => staffIdSet.has(id)).length;
     return {
       totalNeeded,
       totalAssigned,
@@ -209,12 +243,23 @@ const ScheduleManagementPage = () => {
     if (!shiftForm.date || !shiftForm.role) return;
 
     const shiftName = buildShiftName(shiftForm);
+    // 確保 assignedStaffIds 是陣列
+    const assignedStaffIds = Array.isArray(shiftForm.assignedStaffIds) 
+      ? shiftForm.assignedStaffIds.filter(id => id != null && id !== undefined)
+      : [];
 
     if (editingShiftId) {
       setShifts((prev) =>
         prev.map((shift) =>
           shift.id === editingShiftId
-            ? { ...shift, ...shiftForm, shiftName, assignedStaffIds: shiftForm.assignedStaffIds }
+            ? { 
+                ...shift, 
+                ...shiftForm, 
+                shiftName, 
+                assignedStaffIds: assignedStaffIds,
+                // 確保移除舊的 assigned_staff 欄位，避免混淆
+                assigned_staff: undefined
+              }
             : shift
         )
       );
@@ -225,6 +270,7 @@ const ScheduleManagementPage = () => {
           id: Date.now(),
           ...shiftForm,
           shiftName,
+          assignedStaffIds: assignedStaffIds,
         },
       ]);
     }
@@ -255,16 +301,24 @@ const ScheduleManagementPage = () => {
   };
 
   const handleShiftEdit = (shift) => {
+    // 確保 assignedStaffIds 正確讀取
+    let assignedStaffIds = [];
+    if (Array.isArray(shift.assignedStaffIds)) {
+      assignedStaffIds = shift.assignedStaffIds.filter(id => id != null && id !== undefined);
+    } else if (Array.isArray(shift.assigned_staff) && shift.assigned_staff.length > 0) {
+      assignedStaffIds = shift.assigned_staff.map(s => (typeof s === 'object' ? s.id : s)).filter(id => id != null && id !== undefined);
+    }
+    
     setShiftForm({
       date: shift.date,
-      shiftType: shift.shiftType,
+      shiftType: shift.shiftType || shift.shift_type,
       role: shift.role,
-      staffNeeded: shift.staffNeeded,
-      startHour: shift.startHour,
-      startMinute: shift.startMinute,
-      endHour: shift.endHour,
-      endMinute: shift.endMinute,
-      assignedStaffIds: shift.assignedStaffIds,
+      staffNeeded: shift.staffNeeded || shift.staff_needed,
+      startHour: shift.startHour || shift.start_hour,
+      startMinute: shift.startMinute || shift.start_minute,
+      endHour: shift.endHour || shift.end_hour,
+      endMinute: shift.endMinute || shift.end_minute,
+      assignedStaffIds: assignedStaffIds,
       status: shift.status,
     });
     setEditingShiftId(shift.id);
@@ -290,10 +344,21 @@ const ScheduleManagementPage = () => {
   const handleStaffDelete = (id) => {
     setStaff((prev) => prev.filter((member) => member.id !== id));
     setShifts((prev) =>
-      prev.map((shift) => ({
-        ...shift,
-        assignedStaffIds: shift.assignedStaffIds.filter((staffId) => staffId !== id),
-      }))
+      prev.map((shift) => {
+        // 確保正確讀取和更新 assignedStaffIds
+        let assignedIds = [];
+        if (Array.isArray(shift.assignedStaffIds)) {
+          assignedIds = shift.assignedStaffIds;
+        } else if (Array.isArray(shift.assigned_staff) && shift.assigned_staff.length > 0) {
+          assignedIds = shift.assigned_staff.map(s => (typeof s === 'object' ? s.id : s));
+        }
+        
+        return {
+          ...shift,
+          assignedStaffIds: assignedIds.filter((staffId) => staffId !== id),
+          assigned_staff: undefined, // 移除舊的 assigned_staff 欄位
+        };
+      })
     );
     if (editingStaffId === id) {
       setStaffForm(defaultStaffForm);
@@ -301,39 +366,38 @@ const ScheduleManagementPage = () => {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!shifts.length) return;
-    const rows = [
-      ['日期', '時段', '職務', '需求人數', '已排人員', '狀態'],
-      ...shifts.map((shift) => [
-        shift.date,
-        shift.shiftName,
-        shift.role,
-        shift.staffNeeded,
-        shift.assignedStaffIds
-          .map((id) => staff.find((member) => member.id === id)?.name || '')
-          .filter(Boolean)
-          .join(' / '),
-        statusOptions.find((opt) => opt.value === shift.status)?.label || shift.status,
-      ]),
-    ];
-    const csvContent = rows.map((row) => row.join(',')).join('\n');
-    const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `排班表_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    try {
+      const response = await exportScheduleCSV();
+      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8-sig' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `排班表_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to export schedule:', error);
+      setSaveStatus('匯出失敗，請稍後再試');
+      setTimeout(() => setSaveStatus(''), 3000);
+    }
   };
 
   const assignedIdsExceptCurrent = useMemo(() => {
     const ids = new Set();
     shifts.forEach((shift) => {
       if (shift.id === editingShiftId) return;
-      shift.assignedStaffIds.forEach((id) => ids.add(id));
+      // 確保正確讀取 assignedStaffIds
+      let assignedIds = [];
+      if (Array.isArray(shift.assignedStaffIds)) {
+        assignedIds = shift.assignedStaffIds;
+      } else if (Array.isArray(shift.assigned_staff) && shift.assigned_staff.length > 0) {
+        assignedIds = shift.assigned_staff.map(s => (typeof s === 'object' ? s.id : s));
+      }
+      assignedIds.forEach((id) => ids.add(id));
     });
     return ids;
   }, [shifts, editingShiftId]);
@@ -350,22 +414,235 @@ const ScheduleManagementPage = () => {
     }));
   };
 
-  const formatTimeRange = (shift) =>
-    `${formatTwoDigits(shift.startHour)}:${formatTwoDigits(shift.startMinute)} - ${formatTwoDigits(
-      shift.endHour
-    )}:${formatTwoDigits(shift.endMinute)}`;
+  const formatTimeRange = (shift) => {
+    const startHour = shift.startHour ?? shift.start_hour ?? 0;
+    const startMinute = shift.startMinute ?? shift.start_minute ?? 0;
+    const endHour = shift.endHour ?? shift.end_hour ?? 0;
+    const endMinute = shift.endMinute ?? shift.end_minute ?? 0;
+    return `${formatTwoDigits(startHour)}:${formatTwoDigits(startMinute)} - ${formatTwoDigits(endHour)}:${formatTwoDigits(endMinute)}`;
+  };
 
-  const handleSaveAll = () => {
-    const storageKey = getStorageKey();
-    if (!storageKey) {
+  const handleSaveAll = async () => {
+    if (!user) {
       setSaveStatus('請先登入店家帳號');
       setTimeout(() => setSaveStatus(''), 3000);
       return;
     }
-    const payload = { shifts, staff };
-    localStorage.setItem(storageKey, JSON.stringify(payload));
-    setSaveStatus('已儲存最新資料');
-    setTimeout(() => setSaveStatus(''), 3000);
+    
+    try {
+      // 轉換前端格式為 API 格式
+      // 只發送有真實資料庫 ID 的資料（臨時 ID 會被當作新資料處理）
+      // 去重：根據 date, shift_type, role, start_hour, start_minute, end_hour, end_minute 組合去重
+      const uniqueShifts = [];
+      const shiftKeys = new Set();
+      
+      for (const shift of shifts) {
+        if (!shift.id && !shift.date) continue; // 跳過無效資料
+        
+        // 為每個排班創建唯一鍵（用於去重）
+        const key = `${shift.date}_${shift.shiftType || shift.shift_type}_${shift.role}_${shift.startHour || shift.start_hour}_${shift.startMinute || shift.start_minute}_${shift.endHour || shift.end_hour}_${shift.endMinute || shift.end_minute}`;
+        
+        // 如果已經有相同的排班（除了 ID），只保留有 ID 的那個，或者第一個
+        if (!shiftKeys.has(key)) {
+          shiftKeys.add(key);
+          uniqueShifts.push(shift);
+        } else {
+          // 如果已經存在，保留有資料庫 ID 的那個（ID 較小的通常是資料庫 ID）
+          const existingIndex = uniqueShifts.findIndex(s => {
+            const existingKey = `${s.date}_${s.shiftType || s.shift_type}_${s.role}_${s.startHour || s.start_hour}_${s.startMinute || s.start_minute}_${s.endHour || s.end_hour}_${s.endMinute || s.end_minute}`;
+            return existingKey === key;
+          });
+          
+          if (existingIndex !== -1) {
+            const existing = uniqueShifts[existingIndex];
+            // 如果新的有 ID 且舊的沒有，或者新的 ID 更小（更可能是資料庫 ID），則替換
+            if (shift.id && (!existing.id || (existing.id > 1000000000000 && shift.id < 1000000000000))) {
+              uniqueShifts[existingIndex] = shift;
+            }
+          }
+        }
+      }
+      
+      console.log(`去重前: ${shifts.length} 個排班, 去重後: ${uniqueShifts.length} 個排班`);
+      
+      const formattedShifts = uniqueShifts
+        .filter(shift => {
+          // 過濾掉沒有 ID 且沒有必填欄位的資料
+          const id = shift.id;
+          if (!id && (!shift.date || !shift.role)) return false;
+          return true;
+        })
+        .map(shift => {
+          // 確保所有必填欄位都有正確的值和類型
+          const startHour = parseInt(shift.startHour ?? shift.start_hour ?? 0, 10);
+          const startMinute = parseInt(shift.startMinute ?? shift.start_minute ?? 0, 10);
+          const endHour = parseInt(shift.endHour ?? shift.end_hour ?? 0, 10);
+          const endMinute = parseInt(shift.endMinute ?? shift.end_minute ?? 0, 10);
+          const staffNeeded = parseInt(shift.staffNeeded ?? shift.staff_needed ?? 1, 10);
+          
+          return {
+            id: shift.id,
+            date: shift.date || '',
+            shift_type: shift.shiftType || shift.shift_type || 'morning',
+            role: shift.role || '',
+            staff_needed: staffNeeded,
+            start_hour: startHour,
+            start_minute: startMinute,
+            end_hour: endHour,
+            end_minute: endMinute,
+            assigned_staff_ids: (() => {
+              // 確保 assigned_staff_ids 總是陣列格式
+              if (Array.isArray(shift.assignedStaffIds)) {
+                return shift.assignedStaffIds.filter(id => id != null && id !== undefined);
+              }
+              if (Array.isArray(shift.assigned_staff) && shift.assigned_staff.length > 0) {
+                return shift.assigned_staff.map(s => (typeof s === 'object' ? s.id : s)).filter(id => id != null && id !== undefined);
+              }
+              return [];
+            })(),
+            status: shift.status || 'pending',
+          };
+        })
+        .filter(shift => {
+          // 驗證必填欄位
+          return shift.date && shift.shift_type && shift.role;
+        });
+      
+      // 清理 staff 資料，移除不需要的欄位，並去重
+      const uniqueStaff = [];
+      const staffKeys = new Set();
+      
+      for (const s of staff) {
+        if (!s.id) continue;
+        
+        // 根據 ID 去重
+        if (!staffKeys.has(s.id)) {
+          staffKeys.add(s.id);
+          uniqueStaff.push(s);
+        }
+      }
+      
+      console.log(`員工去重前: ${staff.length} 個, 去重後: ${uniqueStaff.length} 個`);
+      
+      const cleanedStaff = uniqueStaff.map(s => ({
+        id: s.id,
+        name: s.name,
+        role: s.role,
+        status: s.status || '',
+      }));
+      
+      const payload = {
+        shifts: formattedShifts,
+        staff: cleanedStaff,
+      };
+      
+      // 調試日誌：檢查發送的資料
+      console.log('準備儲存的資料:', JSON.stringify(payload, null, 2));
+      console.log('排班資料中的 assigned_staff_ids:', formattedShifts.map(s => ({ id: s.id, assigned_staff_ids: s.assigned_staff_ids })));
+      
+      const response = await saveScheduleData(payload);
+      
+      // 強制重新載入資料，確保取得最新的資料庫狀態（避免重複）
+      let data;
+      try {
+        const reloadResponse = await getScheduleData();
+        data = reloadResponse.data;
+      } catch (reloadError) {
+        console.warn('重新載入資料失敗:', reloadError);
+        // 如果重新載入失敗，嘗試使用後端返回的資料
+        data = response?.data;
+      }
+      
+      // 轉換 API 資料格式為前端格式，並去重
+      if (data && data.shifts) {
+        console.log('後端返回的 shifts 資料:', JSON.stringify(data.shifts, null, 2));
+        
+        // 先轉換格式
+        const formattedShifts = data.shifts.map(shift => {
+          // 確保 assignedStaffIds 正確設置
+          let assignedStaffIds = [];
+          if (Array.isArray(shift.assigned_staff) && shift.assigned_staff.length > 0) {
+            assignedStaffIds = shift.assigned_staff.map(s => (typeof s === 'object' ? s.id : s)).filter(id => id != null && id !== undefined);
+          }
+          
+          return {
+            ...shift,
+            assignedStaffIds: assignedStaffIds,
+            staffNeeded: shift.staff_needed,
+            startHour: shift.start_hour,
+            startMinute: shift.start_minute,
+            endHour: shift.end_hour,
+            endMinute: shift.end_minute,
+            shiftType: shift.shift_type,
+          };
+        });
+        
+        // 根據 ID 去重（保留最後一個）
+        const uniqueShiftsMap = new Map();
+        formattedShifts.forEach(shift => {
+          if (shift.id) {
+            uniqueShiftsMap.set(shift.id, shift);
+          }
+        });
+        const uniqueShifts = Array.from(uniqueShiftsMap.values());
+        
+        console.log(`去重前: ${formattedShifts.length} 個排班, 去重後: ${uniqueShifts.length} 個排班`);
+        setShifts(uniqueShifts);
+      } else {
+        setShifts([]);
+      }
+      
+      if (data && data.staff) {
+        // 根據 ID 去重員工（保留最後一個）
+        const uniqueStaffMap = new Map();
+        data.staff.forEach(member => {
+          if (member.id) {
+            uniqueStaffMap.set(member.id, member);
+          }
+        });
+        const uniqueStaff = Array.from(uniqueStaffMap.values());
+        console.log(`員工去重前: ${data.staff.length} 個, 去重後: ${uniqueStaff.length} 個`);
+        setStaff(uniqueStaff);
+      } else {
+        setStaff([]);
+      }
+      
+      setSaveStatus('已儲存最新資料');
+      setTimeout(() => setSaveStatus(''), 3000);
+    } catch (error) {
+      console.error('儲存排班資料失敗:', error);
+      console.error('錯誤詳情:', error.response?.data);
+      // 顯示詳細錯誤訊息
+      if (error.response?.status === 400) {
+        const errorData = error.response.data;
+        let errorMsg = '';
+        
+        if (typeof errorData === 'string') {
+          errorMsg = errorData;
+        } else if (errorData.details) {
+          // 如果有詳細的驗證錯誤，顯示具體的欄位錯誤
+          const details = errorData.details;
+          const fieldErrors = Object.entries(details)
+            .map(([field, errors]) => {
+              const fieldName = field === 'shifts' ? '排班時段' : field === 'staff' ? '員工' : field;
+              const errorList = Array.isArray(errors) ? errors.join(', ') : String(errors);
+              return `${fieldName}: ${errorList}`;
+            })
+            .join('; ');
+          errorMsg = fieldErrors || errorData.error || errorData.detail || '資料格式錯誤';
+        } else {
+          errorMsg = errorData.error || errorData.detail || JSON.stringify(errorData);
+        }
+        
+        setSaveStatus(`儲存失敗: ${errorMsg}`);
+      } else if (error.response?.status === 401 || error.response?.status === 403) {
+        setSaveStatus('權限不足，請確認您已登入店家帳號');
+      } else {
+        const errorMsg = error.response?.data?.error || error.response?.data?.detail || error.message || '儲存失敗，請稍後再試';
+        setSaveStatus(`儲存失敗: ${errorMsg}`);
+      }
+      setTimeout(() => setSaveStatus(''), 5000);
+    }
   };
 
   return (
@@ -638,16 +915,27 @@ const ScheduleManagementPage = () => {
                 <tr key={shift.id}>
                   <td>{shift.date}</td>
                   <td>
-                    <p className="table-shift-name">{shiftPresets[shift.shiftType].label}</p>
+                    <p className="table-shift-name">{shiftPresets[shift.shiftType || shift.shift_type].label}</p>
                     <p className="table-shift-time">{formatTimeRange(shift)}</p>
                   </td>
                   <td>{shift.role}</td>
-                  <td>{shift.staffNeeded}</td>
+                  <td>{shift.staffNeeded || shift.staff_needed}</td>
                   <td>
-                    {shift.assignedStaffIds
-                      .map((id) => staff.find((member) => member.id === id)?.name)
-                      .filter(Boolean)
-                      .join(', ') || '-'}
+                    {(() => {
+                      // 確保正確讀取 assignedStaffIds
+                      let assignedIds = [];
+                      if (Array.isArray(shift.assignedStaffIds)) {
+                        assignedIds = shift.assignedStaffIds;
+                      } else if (Array.isArray(shift.assigned_staff) && shift.assigned_staff.length > 0) {
+                        assignedIds = shift.assigned_staff.map(s => (typeof s === 'object' ? s.id : s));
+                      }
+                      
+                      const names = assignedIds
+                        .map((id) => staff.find((member) => member.id === id)?.name)
+                        .filter(Boolean);
+                      
+                      return names.length > 0 ? names.join(', ') : '-';
+                    })()}
                   </td>
                   <td>{statusOptions.find((opt) => opt.value === shift.status)?.label || shift.status}</td>
                   <td className="table-actions">

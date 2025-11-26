@@ -15,6 +15,7 @@ import CustomerLoginPage from './features/authentication/CustomerLoginPage';
 import MerchantLoginPage from './features/authentication/MerchantLoginPage';
 import CustomerRegisterPage from './features/authentication/CustomerRegisterPage';
 import MerchantRegisterPage from './features/authentication/MerchantRegisterPage';
+import RestaurantMemberLoginPage from './features/authentication/RestaurantMemberLoginPage';
 import CustomerHomePage from './features/home/CustomerHomePage';
 import MerchantDashboard from './features/merchant_dashboard/MerchantDashboard';
 import ProfilePage from './features/user_profile/ProfilePage'; // 1. 匯入新的個人資料頁面
@@ -85,6 +86,7 @@ function App() {
               {/* 登入頁 */}
               <Route path="/login/customer" element={<CustomerLoginPage />} />
               <Route path="/login/merchant" element={<MerchantLoginPage />} />
+              <Route path="/login/restaurant-member" element={<RestaurantMemberLoginPage />} />
               {/* 為了向後相容，將 /login 導向顧客登入 */}
               <Route path="/login" element={<Navigate to="/login/customer" />} />
 

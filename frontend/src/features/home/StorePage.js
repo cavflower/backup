@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getStore } from '../../api/storeApi';
+import { useAuth } from '../../store/AuthContext';
 import { getTakeoutProducts } from '../../api/orderApi';
 import './StorePage.css';
 
 function StorePage() {
   const { storeId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [store, setStore] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -110,14 +112,38 @@ function StorePage() {
   return (
     <div className="store-page-container" style={{ marginTop: '70px', paddingBottom: '50px' }}>
       <div className="container">
-        {/* 返回按鈕 */}
-        <button 
-          className="btn-back-store mb-4"
-          onClick={() => navigate('/customer-home')}
-        >
-          <i className="bi bi-arrow-left me-2"></i>
-          返回店家列表
-        </button>
+        {/* 返回按鈕和登入餐廳會員 */}
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <button 
+            className="btn-back-store"
+            onClick={() => navigate('/customer-home')}
+          >
+            <i className="bi bi-arrow-left me-2"></i>
+            返回店家列表
+          </button>
+          <Link 
+            to="/login/restaurant-member"
+            className="btn btn-outline-primary"
+            style={{
+              textDecoration: 'none',
+              padding: '0.5rem 1.5rem',
+              borderRadius: '20px',
+              border: '1px solid var(--primary-color)',
+              color: 'var(--primary-color)',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = 'var(--primary-color)';
+              e.target.style.color = '#fff';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = 'transparent';
+              e.target.style.color = 'var(--primary-color)';
+            }}
+          >
+            登入餐廳會員
+          </Link>
+        </div>
 
         {/* 餐廳標題和基本資訊 */}
         <div className="store-header-section mb-4">
