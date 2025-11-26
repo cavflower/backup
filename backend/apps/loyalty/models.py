@@ -1,5 +1,9 @@
 from django.db import models
+from django.contrib.auth import get_user_model
 from apps.stores.models import Store
+import uuid
+
+User = get_user_model()
 
 
 class PointRule(models.Model):
@@ -75,4 +79,134 @@ class RedemptionProduct(models.Model):
 
 	def __str__(self):
 		return f"{self.store.name} - {self.title} ({self.required_points} pts)"
+
+
+class CustomerLoyaltyAccount(models.Model):
+	"""
+	顧客會員帳戶：記錄顧客在特定商家的點數累積與會員等級
+	"""
+	user = models.ForeignKey(
+		User, on_delete=models.CASCADE, related_name='loyalty_accounts'
+	)
+	store = models.ForeignKey(
+		Store, on_delete=models.CASCADE, related_name='customer_accounts'
+	)
+	# 累計總點數（歷史所有獲得的點數）
+	total_points = models.IntegerField(default=0, help_text='歷史累積總點數')
+	# 可用點數（扣除已使用的點數）
+	available_points = models.IntegerField(default=0, help_text='目前可用點數')
+	# 當前會員等級
+	current_level = models.ForeignKey(
+		'MembershipLevel', on_delete=models.SET_NULL, null=True, blank=True,
+		related_name='members'
+	)
+	created_at = models.DateTimeField(auto_now_add=True)
+	updated_at = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		verbose_name = '顧客會員帳戶'
+		verbose_name_plural = '顧客會員帳戶'
+		unique_together = ['user', 'store']
+
+	def __str__(self):
+		return f"{self.user.username} @ {self.store.name} ({self.available_points} pts)"
+
+	def update_level(self):
+		"""根據累計總點數更新會員等級"""
+		levels = MembershipLevel.objects.filter(
+			store=self.store,
+			active=True,
+			threshold_points__lte=self.total_points
+		).order_by('-threshold_points')
+		
+		if levels.exists():
+			self.current_level = levels.first()
+			self.save()
+
+
+class PointTransaction(models.Model):
+	"""
+	點數交易記錄：記錄每一筆點數的獲得或使用
+	"""
+	TRANSACTION_TYPE_CHOICES = [
+		('earn', '獲得'),
+		('redeem', '兌換使用'),
+		('adjust', '調整'),
+		('expire', '過期'),
+	]
+
+	account = models.ForeignKey(
+		CustomerLoyaltyAccount, on_delete=models.CASCADE, related_name='transactions'
+	)
+	transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPE_CHOICES)
+	points = models.IntegerField(help_text='點數變動量（正數為獲得，負數為使用）')
+	description = models.TextField(blank=True, default='')
+	# 關聯訂單（如果是從訂單獲得點數）
+	order = models.ForeignKey(
+		'orders.TakeoutOrder', on_delete=models.SET_NULL, null=True, blank=True,
+		related_name='point_transactions'
+	)
+	# 關聯兌換記錄（如果是兌換使用點數）
+	redemption = models.ForeignKey(
+		'Redemption', on_delete=models.SET_NULL, null=True, blank=True,
+		related_name='point_transactions'
+	)
+	created_at = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		verbose_name = '點數交易記錄'
+		verbose_name_plural = '點數交易記錄'
+		ordering = ['-created_at']
+
+	def __str__(self):
+		sign = '+' if self.points >= 0 else ''
+		return f"{self.account.user.username} {sign}{self.points} pts - {self.get_transaction_type_display()}"
+
+
+class Redemption(models.Model):
+	"""
+	兌換記錄：顧客使用點數兌換商品的記錄
+	"""
+	STATUS_CHOICES = [
+		('pending', '待確認'),
+		('confirmed', '已確認'),
+		('redeemed', '已兌換'),
+		('cancelled', '已取消'),
+		('expired', '已過期'),
+	]
+
+	account = models.ForeignKey(
+		CustomerLoyaltyAccount, on_delete=models.CASCADE, related_name='redemptions'
+	)
+	product = models.ForeignKey(
+		RedemptionProduct, on_delete=models.CASCADE, related_name='redemptions'
+	)
+	points_used = models.IntegerField(help_text='兌換時使用的點數')
+	status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+	redemption_code = models.CharField(max_length=50, unique=True, editable=False)
+	# 兌換碼有效期限
+	expires_at = models.DateTimeField(null=True, blank=True)
+	# 實際兌換時間
+	redeemed_at = models.DateTimeField(null=True, blank=True)
+	notes = models.TextField(blank=True, default='')
+	created_at = models.DateTimeField(auto_now_add=True)
+	updated_at = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		verbose_name = '兌換記錄'
+		verbose_name_plural = '兌換記錄'
+		ordering = ['-created_at']
+
+	def __str__(self):
+		return f"{self.account.user.username} - {self.product.title} ({self.redemption_code})"
+
+	def save(self, *args, **kwargs):
+		if not self.redemption_code:
+			self.redemption_code = self.generate_redemption_code()
+		super().save(*args, **kwargs)
+
+	@staticmethod
+	def generate_redemption_code():
+		"""生成唯一的兌換碼"""
+		return f"RDM-{uuid.uuid4().hex[:8].upper()}"
 

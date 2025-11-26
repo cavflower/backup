@@ -37,6 +37,10 @@ import CheckoutPage from './features/home/CheckoutPage';
 import ConfirmationPage from './features/home/ConfirmationPage';
 import ReviewPage from './features/home/ReviewPage';
 import LoyaltyManagement from './features/loyalty_management/LoyaltyManagement';
+import CustomerLoyalty from './features/customer_loyalty/CustomerLoyalty';
+import RedemptionCatalog from './features/customer_loyalty/RedemptionCatalog';
+import MyRedemptions from './features/customer_loyalty/MyRedemptions';
+import PointsHistory from './features/customer_loyalty/PointsHistory';
 import TakeoutOrderPage from './features/takeout/TakeoutOrderPage';
 
 
@@ -215,12 +219,46 @@ function App() {
                 }
               />
 
-              {/* 會員制度管理頁面路由 */}
+              {/* 會員制度管理頁面路由（商家端） */}
               <Route
                 path="/merchant/loyalty"
                 element={
                   <ProtectedRoute>
                     <LoyaltyManagement />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* 顧客會員中心路由 */}
+              <Route
+                path="/customer/loyalty"
+                element={
+                  <ProtectedRoute>
+                    <CustomerLoyalty />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/customer/loyalty/redemptions"
+                element={
+                  <ProtectedRoute>
+                    <RedemptionCatalog />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/customer/loyalty/my-redemptions"
+                element={
+                  <ProtectedRoute>
+                    <MyRedemptions />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/customer/loyalty/history"
+                element={
+                  <ProtectedRoute>
+                    <PointsHistory />
                   </ProtectedRoute>
                 }
               />
