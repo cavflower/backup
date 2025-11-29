@@ -67,12 +67,18 @@ function IngredientForm({ ingredient, onClose }) {
     }
   };
 
+  const handleOverlayClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={handleOverlayClick}>
+      <div className="modal-content">
         <div className="modal-header">
           <h2>{ingredient ? '編輯原物料' : '新增原物料'}</h2>
-          <button className="close-button" onClick={onClose}>×</button>
+          <button type="button" className="close-button" onClick={onClose}>×</button>
         </div>
         
         <form onSubmit={handleSubmit} className="ingredient-form">
