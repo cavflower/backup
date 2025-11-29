@@ -44,6 +44,7 @@ import PointsHistory from './features/customer_loyalty/PointsHistory';
 import TakeoutOrderPage from './features/takeout/TakeoutOrderPage';
 import DineInOrderPage from './features/dine_in/DineInOrderPage';
 import DineInSettingsPage from './features/merchant_dashboard/dine_in/DineInSettingsPage';
+import SurplusFoodManagement from './features/surplus_food/SurplusFoodManagement';
 
 
 // Context
@@ -234,6 +235,16 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <LoyaltyManagement />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* 惜福食品管理頁面路由（商家端） */}
+              <Route
+                path="/merchant/surplus-food"
+                element={
+                  <ProtectedRoute>
+                    <SurplusFoodManagement />
                   </ProtectedRoute>
                 }
               />

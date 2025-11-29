@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'apps.intelligence',
     'apps.inventory',
     'apps.schedules',
+    'apps.surplus_food',
 ]
 
 MIDDLEWARE = [

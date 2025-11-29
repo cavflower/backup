@@ -30,6 +30,7 @@ urlpatterns = [
     path('api/', include('apps.loyalty.urls')),
     path('api/inventory/', include('apps.inventory.urls')),
     path('api/schedules/', include('apps.schedules.urls')),
+    path('api/', include('apps.surplus_food.urls')),
 ]
 
 if settings.DEBUG:

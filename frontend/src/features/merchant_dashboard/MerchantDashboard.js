@@ -16,6 +16,8 @@ import {
   FaBoxes,
   FaCalendarCheck,
   FaChair,
+  FaLeaf,
+  FaRobot,
 } from 'react-icons/fa';
 
 const MerchantDashboard = () => {
@@ -34,22 +36,32 @@ const MerchantDashboard = () => {
       icon: FaStore,
       path: '/merchant/products',
     },
-    {
-      id: 'order-management',
-      name: '訂單管理',
-      description: '查看即時訂單並管理出餐狀態',
-      icon: FaClipboardList,
-      path: '/merchant/orders',
-    },
-    {
-      id: 'reservation-management',
-      name: '訂位管理',
-      description: '管理顧客的訂位請求與狀態',
-      icon: FaUsers,
-      path: '/merchant/reservations',
-    },
-    {
 
+    {
+      id: 'dine-in-settings',
+      name: '內用設定',
+      description: '調整內用菜單與座位配置',
+      icon: FaChair,
+      path: '/merchant/dine-in',
+    },
+
+    {
+      id: 'store-settings',
+      name: '餐廳設定',
+      description: '設定您的餐廳資訊與營業狀態',
+      icon: FaUtensils,
+      path: '/merchant/settings',
+    },
+
+    {
+      id: 'schedule-management',
+      name: '排班管理',
+      description: '建立班表、追蹤缺口與智慧排班',
+      icon: FaCalendarCheck,
+      path: '/merchant/schedule',
+    },
+
+    {
       id: 'inventory-management',
       name: '原物料管理',
       description: '管理原料的進出貨記錄',
@@ -64,19 +76,39 @@ const MerchantDashboard = () => {
       icon: FaChartLine,
       path: '/merchant/reports',
     },
+
     {
-      id: 'store-settings',
-      name: '餐廳設定',
-      description: '設定您的餐廳資訊與營業狀態',
-      icon: FaUtensils,
-      path: '/merchant/settings',
+      id: 'order-management',
+      name: '訂單管理',
+      description: '查看即時訂單並管理出餐狀態',
+      icon: FaClipboardList,
+      path: '/merchant/orders',
     },
+
     {
       id: 'promotions',
       name: '行銷活動',
       description: '建立與管理您的行銷活動',
       icon: FaBullhorn,
       path: '/merchant/promotions',
+    },
+
+
+    
+    {
+      id: 'line-bot-settings',
+      name: '餐廳助手 (LINE BOT)',
+      description: '設定 LINE BOT 自動回覆與通知功能',
+      icon: FaRobot,
+      path: '/merchant/line-bot',
+    },
+
+    {
+      id: 'reservation-management',
+      name: '訂位管理',
+      description: '管理顧客的訂位請求與狀態',
+      icon: FaUsers,
+      path: '/merchant/reservations',
     },
 
     {
@@ -88,19 +120,11 @@ const MerchantDashboard = () => {
     },
 
     {
-      id: 'schedule-management',
-      name: '排班管理',
-      description: '建立班表、追蹤缺口與智慧排班',
-      icon: FaCalendarCheck,
-      path: '/merchant/schedule',
-    },
-
-    {
-      id: 'dine-in-settings',
-      name: '內用設定',
-      description: '調整內用菜單與座位配置',
-      icon: FaChair,
-      path: '/merchant/dine-in',
+      id: 'surplus-food',
+      name: '惜福品',
+      description: '設定即期或剩餘食材的優惠方案',
+      icon: FaLeaf,
+      path: '/merchant/surplus-food',
     },
 
 
